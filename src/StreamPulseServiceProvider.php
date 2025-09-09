@@ -5,7 +5,6 @@ namespace StreamPulse\StreamPulse;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use StreamPulse\StreamPulse\Commands\StreamPulseCommand;
-use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 
 class StreamPulseServiceProvider extends PackageServiceProvider
 {
@@ -32,7 +31,7 @@ class StreamPulseServiceProvider extends PackageServiceProvider
         parent::register();
 
         $this->app->singleton(StreamPulse::class, function () {
-            return new StreamPulse();
+            return new StreamPulse;
         });
     }
 }
