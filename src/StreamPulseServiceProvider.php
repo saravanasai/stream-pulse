@@ -5,6 +5,7 @@ namespace StreamPulse\StreamPulse;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use StreamPulse\StreamPulse\Commands\StreamPulseCommand;
+use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 
 class StreamPulseServiceProvider extends PackageServiceProvider
 {
@@ -21,5 +22,17 @@ class StreamPulseServiceProvider extends PackageServiceProvider
             ->hasViews()
             ->hasMigration('create_stream_pulse_table')
             ->hasCommand(StreamPulseCommand::class);
+    }
+
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->singleton(StreamPulse::class, function () {
+            return new StreamPulse();
+        });
     }
 }
