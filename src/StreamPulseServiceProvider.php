@@ -5,7 +5,6 @@ namespace StreamPulse\StreamPulse;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use StreamPulse\StreamPulse\Commands\StreamPulseCommand;
-use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 

@@ -18,7 +18,6 @@ class StreamPulseDashboardController extends Controller
     /**
      * Create a new controller instance.
      *
-     * @param \StreamPulse\StreamPulse\Contracts\StreamUIInterface $streamUI
      * @return void
      */
     public function __construct(StreamUIInterface $streamUI)
@@ -45,8 +44,6 @@ class StreamPulseDashboardController extends Controller
     /**
      * Display events for a specific topic.
      *
-     * @param \Illuminate\Http\Request $request
-     * @param string $topic
      * @return \Illuminate\View\View
      */
     public function topic(Request $request, string $topic)
@@ -67,8 +64,6 @@ class StreamPulseDashboardController extends Controller
     /**
      * Display details for a specific event.
      *
-     * @param string $topic
-     * @param string $eventId
      * @return \Illuminate\View\View
      */
     public function event(string $topic, string $eventId)
