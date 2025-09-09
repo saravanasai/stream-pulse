@@ -3,9 +3,7 @@
 namespace StreamPulse\StreamPulse\Drivers;
 
 use Illuminate\Support\Facades\Redis;
-use Predis\Client;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
-use InvalidArgumentException;
 
 class RedisStreamsDriver implements EventStoreDriver
 {
@@ -18,8 +16,6 @@ class RedisStreamsDriver implements EventStoreDriver
 
     /**
      * Stream prefix.
-     *
-     * @var string
      */
     protected string $prefix;
 
@@ -37,21 +33,14 @@ class RedisStreamsDriver implements EventStoreDriver
 
     /**
      * Get the full stream name with prefix.
-     *
-     * @param string $topic
-     * @return string
      */
     protected function getStreamName(string $topic): string
     {
-        return $this->prefix . $topic;
+        return $this->prefix.$topic;
     }
 
     /**
      * Publish an event to a topic.
-     *
-     * @param string $topic
-     * @param array $payload
-     * @return void
      */
     public function publish(string $topic, array $payload): void
     {
@@ -70,16 +59,11 @@ class RedisStreamsDriver implements EventStoreDriver
 
     /**
      * Consume events from a topic.
-     *
-     * @param string $topic
-     * @param callable $callback
-     * @param string $group
-     * @return void
      */
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname() . ':' . getmypid();
+        $consumerName = gethostname().':'.getmypid();
 
         // Create consumer group if it doesn't exist
         try {
@@ -108,11 +92,6 @@ class RedisStreamsDriver implements EventStoreDriver
 
     /**
      * Acknowledge a message as processed.
-     *
-     * @param string $topic
-     * @param string $messageId
-     * @param string $group
-     * @return void
      */
     public function ack(string $topic, string $messageId, string $group): void
     {
@@ -122,27 +101,22 @@ class RedisStreamsDriver implements EventStoreDriver
 
     /**
      * Mark a message as failed.
-     *
-     * @param string $topic
-     * @param string $messageId
-     * @param string $group
-     * @return void
      */
     public function fail(string $topic, string $messageId, string $group): void
     {
         // In Redis Streams, failing is just not acknowledging,
         // but we could implement additional logic here like moving to a dead letter queue
         $streamName = $this->getStreamName($topic);
-        $deadLetterStream = $this->getStreamName($topic . ':failed');
+        $deadLetterStream = $this->getStreamName($topic.':failed');
 
         // Get the message from the pending list
         $pendingMessages = $this->redis->xPendingRange($streamName, $group, $messageId, $messageId, 1);
 
-        if (!empty($pendingMessages)) {
+        if (! empty($pendingMessages)) {
             // Get the actual message content
             $message = $this->redis->xRange($streamName, $messageId, $messageId);
 
-            if (!empty($message)) {
+            if (! empty($message)) {
                 // Move to dead letter queue
                 $this->redis->xAdd($deadLetterStream, '*', $message[$messageId]);
 

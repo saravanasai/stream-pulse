@@ -2,30 +2,23 @@
 
 namespace StreamPulse\StreamPulse;
 
-use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 use InvalidArgumentException;
+use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 
 class StreamPulse
 {
     /**
      * The array of created drivers.
-     *
-     * @var array
      */
     protected array $drivers = [];
 
     /**
      * The registered custom driver creators.
-     *
-     * @var array
      */
     protected array $customCreators = [];
 
     /**
      * Get a driver instance.
-     *
-     * @param string|null $name
-     * @return \StreamPulse\StreamPulse\Contracts\EventStoreDriver
      */
     public function driver(?string $name = null): EventStoreDriver
     {
@@ -36,9 +29,6 @@ class StreamPulse
 
     /**
      * Get a driver instance.
-     *
-     * @param string $name
-     * @return \StreamPulse\StreamPulse\Contracts\EventStoreDriver
      */
     protected function get(string $name): EventStoreDriver
     {
@@ -48,8 +38,6 @@ class StreamPulse
     /**
      * Resolve the given driver.
      *
-     * @param string $name
-     * @return \StreamPulse\StreamPulse\Contracts\EventStoreDriver
      *
      * @throws \InvalidArgumentException
      */
@@ -61,7 +49,7 @@ class StreamPulse
             return $this->callCustomCreator($name);
         }
 
-        $driverMethod = 'create' . ucfirst($name) . 'Driver';
+        $driverMethod = 'create'.ucfirst($name).'Driver';
 
         if (method_exists($this, $driverMethod)) {
             return $this->{$driverMethod}($config);
@@ -72,9 +60,6 @@ class StreamPulse
 
     /**
      * Call a custom driver creator.
-     *
-     * @param string $name
-     * @return \StreamPulse\StreamPulse\Contracts\EventStoreDriver
      */
     protected function callCustomCreator(string $name): EventStoreDriver
     {
@@ -83,9 +68,6 @@ class StreamPulse
 
     /**
      * Get the configuration for a driver.
-     *
-     * @param string $name
-     * @return array
      */
     protected function getConfig(string $name): array
     {
@@ -94,8 +76,6 @@ class StreamPulse
 
     /**
      * Get the default driver name.
-     *
-     * @return string
      */
     public function getDefaultDriver(): string
     {
@@ -104,8 +84,6 @@ class StreamPulse
 
     /**
      * Create an instance of the Redis driver.
-     *
-     * @return \StreamPulse\StreamPulse\Contracts\EventStoreDriver
      */
     protected function createRedisDriver(): EventStoreDriver
     {
@@ -115,8 +93,6 @@ class StreamPulse
     /**
      * Register a custom driver creator Closure.
      *
-     * @param string $driver
-     * @param \Closure $callback
      * @return $this
      */
     public function extend(string $driver, \Closure $callback): self
@@ -128,10 +104,6 @@ class StreamPulse
 
     /**
      * Publish an event to a topic.
-     *
-     * @param string $topic
-     * @param array $payload
-     * @return void
      */
     public function publish(string $topic, array $payload): void
     {
@@ -140,11 +112,6 @@ class StreamPulse
 
     /**
      * Consume events from a topic.
-     *
-     * @param string $topic
-     * @param callable $callback
-     * @param string $group
-     * @return void
      */
     public function consume(string $topic, string $group, callable $callback): void
     {
@@ -153,11 +120,6 @@ class StreamPulse
 
     /**
      * Acknowledge a message as processed.
-     *
-     * @param string $topic
-     * @param string $messageId
-     * @param string $group
-     * @return void
      */
     public function ack(string $topic, string $messageId, string $group): void
     {
@@ -166,11 +128,6 @@ class StreamPulse
 
     /**
      * Mark a message as failed.
-     *
-     * @param string $topic
-     * @param string $messageId
-     * @param string $group
-     * @return void
      */
     public function fail(string $topic, string $messageId, string $group): void
     {
