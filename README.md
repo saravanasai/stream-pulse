@@ -90,12 +90,27 @@ use StreamPulse\StreamPulse\Facades\StreamPulse;
 // Consume events
 StreamPulse::consume('orders', 'billing-service', function ($event, $messageId) {
     // Process the event
-    Log::info('Processing order: ' . $event['id']);
+    logger('Processing order: ' . $event['id']);
 
     // After successful processing, acknowledge the message
     StreamPulse::ack('orders', $messageId, 'billing-service');
 });
 ```
+
+#### How Consume Works
+
+The `consume` method takes three parameters:
+
+-   `topic`: The stream topic to consume from (will be prefixed automatically)
+-   `group`: Consumer group name for distributed processing
+-   `callback`: Function that receives `($event, $messageId)` for each message
+
+When called, it:
+
+1. Creates the consumer group if it doesn't exist
+2. Reads messages assigned to this consumer
+3. Passes each message to your callback function
+4. Requires explicit acknowledgment via `ack()` or `fail()`
 
 ### Error Handling
 
@@ -133,6 +148,54 @@ StreamPulse uses Redis Streams as the default driver, which provides:
 
 You need to have Redis installed (version 5.0 or higher) and properly configured in your Laravel application.
 
+## Extending StreamPulse
+
+## Extending StreamPulse
+
+You can create your own custom driver by implementing the `EventStoreDriver` interface:
+
+```php
+namespace App\StreamPulse\Drivers;
+
+use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
+
+class CustomDriver implements EventStoreDriver
+{
+    public function publish(string $topic, array $payload): void
+    {
+        // Implementation
+    }
+
+    public function consume(string $topic, callable $callback, string $group): void
+    {
+        // Implementation
+    }
+
+    public function ack(string $topic, string $messageId, string $group): void
+    {
+        // Implementation
+    }
+
+    public function fail(string $topic, string $messageId, string $group): void
+    {
+        // Implementation
+    }
+}
+```
+
+Then register your driver in a service provider:
+
+```php
+use StreamPulse\StreamPulse\Facades\StreamPulse;
+
+public function boot()
+{
+    StreamPulse::extend('custom', function ($app) {
+        return new \App\StreamPulse\Drivers\CustomDriver();
+    });
+}
+```
+
 ## Testing
 
 ```bash
@@ -155,6 +218,10 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 -   [saravanasai](https://github.com/saravanasai)
 -   [All Contributors](../../contributors)
+
+## License
+
+The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
 
 ## License
 
