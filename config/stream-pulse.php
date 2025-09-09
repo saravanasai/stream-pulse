@@ -28,4 +28,18 @@ return [
             'stream_prefix' => 'streampulse:',
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | UI Settings
+    |--------------------------------------------------------------------------
+    |
+    | Settings specific to the StreamPulse UI dashboard.
+    |
+    */
+    'ui' => [
+        'enabled' => env('STREAMPULSE_UI_ENABLED', true),
+        'page_size' => env('STREAMPULSE_UI_PAGE_SIZE', 50),
+        'route_prefix' => 'streampulse',
+    ],
 ];

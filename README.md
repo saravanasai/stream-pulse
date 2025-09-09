@@ -13,6 +13,7 @@ StreamPulse is a Laravel package for event streaming with support for multiple d
 -   Redis Streams driver implementation
 -   Consumer group support for distributed event processing
 -   Dead letter queue for failed message handling
+-   UI Dashboard for monitoring streams and events
 -   Extensible architecture to support additional drivers
 
 ## Installation
@@ -27,6 +28,12 @@ You can publish the config file with:
 
 ```bash
 php artisan vendor:publish --tag="stream-pulse-config"
+```
+
+You can also publish the views to customize the UI dashboard:
+
+```bash
+php artisan vendor:publish --tag="stream-pulse-views"
 ```
 
 This is the contents of the published config file:
@@ -58,6 +65,20 @@ return [
             'connection' => env('REDIS_CONNECTION', 'default'),
             'stream_prefix' => 'streampulse:',
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | UI Settings
+    |--------------------------------------------------------------------------
+    |
+    | Settings specific to the StreamPulse UI dashboard.
+    |
+    */
+    'ui' => [
+        'enabled' => env('STREAMPULSE_UI_ENABLED', true),
+        'page_size' => env('STREAMPULSE_UI_PAGE_SIZE', 50),
+        'route_prefix' => 'streampulse',
     ],
 ];
 ```
@@ -148,7 +169,29 @@ StreamPulse uses Redis Streams as the default driver, which provides:
 
 You need to have Redis installed (version 5.0 or higher) and properly configured in your Laravel application.
 
-## Extending StreamPulse
+## UI Dashboard
+
+StreamPulse includes a web dashboard for monitoring and inspecting your streams and events:
+
+### Features
+
+-   View all available streams/topics
+-   Browse events by topic with pagination
+-   Examine event details including payload and metadata
+-   Track failed events across all topics
+
+### Accessing the Dashboard
+
+The dashboard is available at the route `/streampulse` and is protected by the `web` and `auth` middleware by default.
+
+Routes include:
+
+-   Dashboard: `/streampulse`
+-   Topic Events: `/streampulse/topics/{topic}`
+-   Event Details: `/streampulse/topics/{topic}/events/{eventId}`
+-   Failed Events: `/streampulse/failed`
+
+For more details on the UI Dashboard, see [UI Dashboard Documentation](docs/ui-dashboard.md).
 
 ## Extending StreamPulse
 

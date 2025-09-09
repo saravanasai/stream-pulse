@@ -4,9 +4,15 @@ namespace StreamPulse\StreamPulse\Drivers;
 
 use Illuminate\Support\Facades\Redis;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
+use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 
-class RedisStreamsDriver implements EventStoreDriver
+class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 {
+    /**
+     * Suffix for failed events streams.
+     */
+    private const FAILED_SUFFIX = ':failed';
+
     /**
      * Redis connection.
      *
@@ -36,7 +42,7 @@ class RedisStreamsDriver implements EventStoreDriver
      */
     protected function getStreamName(string $topic): string
     {
-        return $this->prefix.$topic;
+        return $this->prefix . $topic;
     }
 
     /**
@@ -63,7 +69,7 @@ class RedisStreamsDriver implements EventStoreDriver
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname().':'.getmypid();
+        $consumerName = gethostname() . ':' . getmypid();
 
         // Create consumer group if it doesn't exist
         try {
@@ -107,7 +113,7 @@ class RedisStreamsDriver implements EventStoreDriver
         // In Redis Streams, failing is just not acknowledging,
         // but we could implement additional logic here like moving to a dead letter queue
         $streamName = $this->getStreamName($topic);
-        $deadLetterStream = $this->getStreamName($topic.':failed');
+        $deadLetterStream = $this->getStreamName($topic . self::FAILED_SUFFIX);
 
         // Get the message from the pending list
         $pendingMessages = $this->redis->xPendingRange($streamName, $group, $messageId, $messageId, 1);
@@ -124,5 +130,119 @@ class RedisStreamsDriver implements EventStoreDriver
                 $this->redis->xAck($streamName, $group, [$messageId]);
             }
         }
+    }
+
+    /**
+     * List all available topics/streams.
+     */
+    public function listTopics(): array
+    {
+        $pattern = $this->prefix . '*';
+        $keys = $this->redis->keys($pattern);
+        $topics = [];
+
+        foreach ($keys as $key) {
+            // Skip the failed topics
+            if (!str_contains($key, self::FAILED_SUFFIX)) {
+                // Remove the prefix to get the raw topic name
+                $topic = str_replace($this->prefix, '', $key);
+                $topics[] = $topic;
+            }
+        }
+
+        return $topics;
+    }
+
+    /**
+     * List failed or dead-lettered events.
+     */
+    public function listFailedEvents(): array
+    {
+        $pattern = $this->prefix . '*' . self::FAILED_SUFFIX;
+        $keys = $this->redis->keys($pattern);
+        $failedEvents = [];
+
+        foreach ($keys as $failedStreamKey) {
+            $topic = str_replace([$this->prefix, self::FAILED_SUFFIX], '', $failedStreamKey);
+            $events = $this->redis->xRange($failedStreamKey, '-', '+', 100);
+
+            foreach ($events as $eventId => $payload) {
+                $failedEvents[] = [
+                    'topic' => $topic,
+                    'event_id' => $eventId,
+                    'payload' => $payload,
+                    'timestamp' => $this->getTimestampFromId($eventId),
+                ];
+            }
+        }
+
+        // Sort by timestamp (newest first)
+        usort($failedEvents, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+
+        return $failedEvents;
+    }
+
+    /**
+     * Get recent events for a specific topic.
+     */
+    public function getEventsByTopic(string $topic, int $limit = 50, int $offset = 0): array
+    {
+        $streamName = $this->getStreamName($topic);
+        $events = [];
+
+        // Get all events from newest to oldest
+        $streamEvents = $this->redis->xRevRange($streamName, '+', '-', $limit + $offset);
+
+        // Apply offset
+        $streamEvents = array_slice($streamEvents, $offset, $limit);
+
+        foreach ($streamEvents as $eventId => $payload) {
+            $events[] = [
+                'event_id' => $eventId,
+                'payload' => $payload,
+                'timestamp' => $this->getTimestampFromId($eventId),
+            ];
+        }
+
+        return $events;
+    }
+
+    /**
+     * Get detailed payload and metadata of a single event.
+     */
+    public function getEventDetails(string $topic, string $eventId): array
+    {
+        $streamName = $this->getStreamName($topic);
+        $events = $this->redis->xRange($streamName, $eventId, $eventId);
+
+        if (empty($events)) {
+            // Check if it's in the failed events
+            $failedStreamName = $this->getStreamName($topic . self::FAILED_SUFFIX);
+            $events = $this->redis->xRange($failedStreamName, $eventId, $eventId);
+
+            if (empty($events)) {
+                return []; // Event not found
+            }
+        }
+
+        $payload = reset($events);
+
+        return [
+            'event_id' => $eventId,
+            'topic' => $topic,
+            'payload' => $payload,
+            'timestamp' => $this->getTimestampFromId($eventId),
+            'is_failed' => empty($this->redis->xRange($streamName, $eventId, $eventId)),
+        ];
+    }
+
+    /**
+     * Extract timestamp from a Redis stream ID.
+     */
+    protected function getTimestampFromId(string $id): int
+    {
+        // Redis stream IDs are in the format: timestamp-sequence
+        $parts = explode('-', $id);
+        return (int) $parts[0];
     }
 }
