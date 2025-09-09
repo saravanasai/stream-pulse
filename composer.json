@@ -1,0 +1,74 @@
+{
+    "name": "saravanasai/stream-pulse",
+    "description": "This is my package stream-pulse",
+    "keywords": [
+        "StreamPulse",
+        "laravel",
+        "stream-pulse"
+    ],
+    "homepage": "https://github.com/saravanasai/stream-pulse",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "saravanasai",
+            "email": "saravanasai002@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "spatie/laravel-package-tools": "^1.16",
+        "illuminate/contracts": "^11.0||^12.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.14",
+        "nunomaduro/collision": "^8.8",
+        "larastan/larastan": "^3.0",
+        "orchestra/testbench": "^10.0.0||^9.0.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-arch": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0",
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan-deprecation-rules": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "StreamPulse\\StreamPulse\\": "src/",
+            "StreamPulse\\StreamPulse\\Database\\Factories\\": "database/factories/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "StreamPulse\\StreamPulse\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": "@composer run prepare",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "analyse": "vendor/bin/phpstan analyse",
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "StreamPulse\\StreamPulse\\StreamPulseServiceProvider"
+            ],
+            "aliases": {
+                "StreamPulse": "StreamPulse\\StreamPulse\\Facades\\StreamPulse"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
