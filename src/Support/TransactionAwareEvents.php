@@ -26,7 +26,6 @@ class TransactionAwareEvents
     /**
      * Create a new transaction-aware events instance.
      *
-     * @param  \StreamPulse\StreamPulse\Contracts\EventStoreDriver  $driver
      * @return void
      */
     public function __construct(EventStoreDriver $driver)
@@ -36,10 +35,6 @@ class TransactionAwareEvents
 
     /**
      * Store an event to be published after the database transaction commits.
-     *
-     * @param  string  $topic
-     * @param  array  $payload
-     * @return void
      */
     public function store(string $topic, array $payload): void
     {
@@ -55,11 +50,6 @@ class TransactionAwareEvents
 
     /**
      * Store an event for the given connection to be published after commit.
-     *
-     * @param  \Illuminate\Database\ConnectionInterface  $connection
-     * @param  string  $topic
-     * @param  array  $payload
-     * @return void
      */
     protected function storeEvent(ConnectionInterface $connection, string $topic, array $payload): void
     {
@@ -88,9 +78,6 @@ class TransactionAwareEvents
 
     /**
      * Publish all pending events for a specific connection.
-     *
-     * @param  string  $connectionName
-     * @return void
      */
     protected function publishPendingEvents(string $connectionName): void
     {
@@ -107,9 +94,6 @@ class TransactionAwareEvents
 
     /**
      * Discard all pending events for a specific connection.
-     *
-     * @param  string  $connectionName
-     * @return void
      */
     protected function discardPendingEvents(string $connectionName): void
     {
@@ -118,8 +102,6 @@ class TransactionAwareEvents
 
     /**
      * Resolve the database connection instance.
-     *
-     * @return \Illuminate\Database\ConnectionInterface
      */
     protected function resolveConnection(): ConnectionInterface
     {
@@ -130,9 +112,6 @@ class TransactionAwareEvents
 
     /**
      * Determine if a transaction is active on the given connection.
-     *
-     * @param  \Illuminate\Database\ConnectionInterface  $connection
-     * @return bool
      */
     protected function isTransactionActive(ConnectionInterface $connection): bool
     {
@@ -141,9 +120,6 @@ class TransactionAwareEvents
 
     /**
      * Get the name of the database connection.
-     *
-     * @param  \Illuminate\Database\ConnectionInterface  $connection
-     * @return string
      */
     protected function getConnectionName(ConnectionInterface $connection): string
     {

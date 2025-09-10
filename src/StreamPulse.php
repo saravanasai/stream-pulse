@@ -49,7 +49,7 @@ class StreamPulse
             return $this->callCustomCreator($name);
         }
 
-        $driverMethod = 'create' . ucfirst($name) . 'Driver';
+        $driverMethod = 'create'.ucfirst($name).'Driver';
 
         if (method_exists($this, $driverMethod)) {
             return $this->{$driverMethod}($config);
