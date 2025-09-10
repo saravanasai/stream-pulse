@@ -1,4 +1,4 @@
-# StreamPulse <img src="resources/images/logo.png" alt="StreamPulse Logo" width="30" height="30" style="vertical-align: middle;">
+# <img src="resources/images/logo.png" alt="StreamPulse Logo" width="200" height="100" style="vertical-align: middle;">
 
 StreamPulse is a Laravel package for event streaming with support for multiple drivers. It provides a simple, unified API for publishing and consuming events across different streaming platforms.
 
