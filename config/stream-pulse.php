@@ -24,7 +24,7 @@ return [
     */
     'drivers' => [
         'redis' => [
-            'connection' => env('REDIS_CONNECTION', 'default'),
+            'connection' => env('REDIS_CONNECTION', 'localhost:6379'),
             'stream_prefix' => 'streampulse:',
         ],
     ],
