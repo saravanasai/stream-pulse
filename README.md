@@ -209,62 +209,14 @@ StreamPulse includes a web dashboard for monitoring and inspecting your streams 
 
 ### Accessing the Dashboard
 
-The dashboard is available at the route `/streampulse` and is protected by the `web` and `auth` middleware by default.
+The dashboard is available at the route `/stream-pulse` and is protected by the `web` and `auth` middleware by default.
 
 Routes include:
 
--   Dashboard: `/streampulse`
--   Topic Events: `/streampulse/topics/{topic}`
--   Event Details: `/streampulse/topics/{topic}/events/{eventId}`
--   Failed Events: `/streampulse/failed`
-
-For more details on the UI Dashboard, see [UI Dashboard Documentation](docs/ui-dashboard.md).
-
-## Extending StreamPulse
-
-You can create your own custom driver by implementing the `EventStoreDriver` interface:
-
-```php
-namespace App\StreamPulse\Drivers;
-
-use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
-
-class CustomDriver implements EventStoreDriver
-{
-    public function publish(string $topic, array $payload): void
-    {
-        // Implementation
-    }
-
-    public function consume(string $topic, callable $callback, string $group): void
-    {
-        // Implementation
-    }
-
-    public function ack(string $topic, string $messageId, string $group): void
-    {
-        // Implementation
-    }
-
-    public function fail(string $topic, string $messageId, string $group): void
-    {
-        // Implementation
-    }
-}
-```
-
-Then register your driver in a service provider:
-
-```php
-use StreamPulse\StreamPulse\Facades\StreamPulse;
-
-public function boot()
-{
-    StreamPulse::extend('custom', function ($app) {
-        return new \App\StreamPulse\Drivers\CustomDriver();
-    });
-}
-```
+-   Dashboard: `/stream-pulse`
+-   Topic Events: `/stream-pulse/topics/{topic}`
+-   Event Details: `/stream-pulse/topics/{topic}/events/{eventId}`
+-   Failed Events: `/stream-pulse/failed`
 
 ## Testing
 
