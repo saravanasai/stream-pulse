@@ -1,9 +1,4 @@
-# StreamPulse <img src="https://raw.githubusercontent.com/saravanasai/stream-pulse/main/resources/images/logo.png" alt="StreamPulse Logo" width="30" height="30" style="vertical-align: middle;">
-
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/saravanasai/stream-pulse.svg?style=flat-square)](https://packagist.org/packages/saravanasai/stream-pulse)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/saravanasai/stream-pulse/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/saravanasai/stream-pulse/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/saravanasai/stream-pulse/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/saravanasai/stream-pulse/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/saravanasai/stream-pulse.svg?style=flat-square)](https://packagist.org/packages/saravanasai/stream-pulse)
+# StreamPulse <img src="resources/images/logo.png" alt="StreamPulse Logo" width="30" height="30" style="vertical-align: middle;">
 
 StreamPulse is a Laravel package for event streaming with support for multiple drivers. It provides a simple, unified API for publishing and consuming events across different streaming platforms.
 
@@ -200,7 +195,7 @@ You need to have Redis installed (version 5.0 or higher) and properly configured
 
 StreamPulse includes a web dashboard for monitoring and inspecting your streams and events:
 
-![StreamPulse Dashboard](https://raw.githubusercontent.com/saravanasai/stream-pulse/main/resources/images/dashboard.png)
+![StreamPulse Dashboard](resources/images/dashboard.png)
 
 ### Features
 
