@@ -4,7 +4,6 @@ namespace StreamPulse\StreamPulse\Drivers;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Str;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 
@@ -44,7 +43,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     protected function getStreamName(string $topic): string
     {
-        return $this->prefix . $topic;
+        return $this->prefix.$topic;
     }
 
     /**
@@ -71,7 +70,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname() . ':' . getmypid();
+        $consumerName = gethostname().':'.getmypid();
 
         // Create consumer group if it doesn't exist
         try {
@@ -115,7 +114,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         // In Redis Streams, failing is just not acknowledging,
         // but we could implement additional logic here like moving to a dead letter queue
         $streamName = $this->getStreamName($topic);
-        $deadLetterStream = $this->getStreamName($topic . self::FAILED_SUFFIX);
+        $deadLetterStream = $this->getStreamName($topic.self::FAILED_SUFFIX);
 
         // Get the message from the pending list
         $pendingMessages = $this->redis->xPendingRange($streamName, $group, $messageId, $messageId, 1);
@@ -139,13 +138,13 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     public function listTopics(): array
     {
-        $pattern = $this->prefix . '*';
+        $pattern = $this->prefix.'*';
         $keys = $this->redis->keys($pattern);
-        Log::info('Redis keys found: ' . implode(', ', $keys));
+        Log::info('Redis keys found: '.implode(', ', $keys));
         $topics = [];
 
         // Get Laravel's default Redis prefix using config for runtime flexibility
-        $laravelPrefix =  config('database.redis.options.prefix', '');
+        $laravelPrefix = config('database.redis.options.prefix', '');
 
         foreach ($keys as $key) {
             // Skip the failed topics
@@ -170,7 +169,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     public function listFailedEvents(): array
     {
-        $pattern = $this->prefix . '*' . self::FAILED_SUFFIX;
+        $pattern = $this->prefix.'*'.self::FAILED_SUFFIX;
         $keys = $this->redis->keys($pattern);
         $failedEvents = [];
 
@@ -189,7 +188,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         }
 
         // Sort by timestamp (newest first)
-        usort($failedEvents, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+        usort($failedEvents, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);
 
         return $failedEvents;
     }
@@ -229,7 +228,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
         if (empty($events)) {
             // Check if it's in the failed events
-            $failedStreamName = $this->getStreamName($topic . self::FAILED_SUFFIX);
+            $failedStreamName = $this->getStreamName($topic.self::FAILED_SUFFIX);
             $events = $this->redis->xRange($failedStreamName, $eventId, $eventId);
 
             if (empty($events)) {
