@@ -1,4 +1,4 @@
-# StreamPulse
+# StreamPulse <img src="https://raw.githubusercontent.com/saravanasai/stream-pulse/main/resources/images/logo.png" alt="StreamPulse Logo" width="30" height="30" style="vertical-align: middle;">
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/saravanasai/stream-pulse.svg?style=flat-square)](https://packagist.org/packages/saravanasai/stream-pulse)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/saravanasai/stream-pulse/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/saravanasai/stream-pulse/actions?query=workflow%3Arun-tests+branch%3Amain)
@@ -200,12 +200,16 @@ You need to have Redis installed (version 5.0 or higher) and properly configured
 
 StreamPulse includes a web dashboard for monitoring and inspecting your streams and events:
 
+![StreamPulse Dashboard](https://raw.githubusercontent.com/saravanasai/stream-pulse/main/resources/images/dashboard.png)
+
 ### Features
 
 -   View all available streams/topics
 -   Browse events by topic with pagination
 -   Examine event details including payload and metadata
 -   Track failed events across all topics
+-   Real-time monitoring of stream activity
+-   Visual analytics of event processing
 
 ### Accessing the Dashboard
 

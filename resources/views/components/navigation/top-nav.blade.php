@@ -14,7 +14,7 @@
                                 class="w-9 h-9 bg-redis-red rounded-md flex items-center justify-center mr-3 shadow-lg">
                                 <i class="fa-solid fa-bolt text-white text-lg"></i>
                             </div>
-                            <span class="font-semibold text-xl text-white">StreamPulse</span>
+                            <span class="font-semibold text-xl text-white">Stream Pulse</span>
                         </a>
                     </div>
                 </div>
