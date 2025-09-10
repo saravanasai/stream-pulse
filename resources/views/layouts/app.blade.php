@@ -21,17 +21,17 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ route('streampulse.dashboard') }}">StreamPulse</a>
+            <a class="navbar-brand" href="{{ route('stream-pulse.dashboard') }}">StreamPulse</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ route('streampulse.dashboard') }}">Dashboard</a>
+                        <a class="nav-link" href="{{ route('stream-pulse.dashboard') }}">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ route('streampulse.failed') }}">Failed Events</a>
+                        <a class="nav-link" href="{{ route('stream-pulse.failed') }}">Failed Events</a>
                     </li>
                 </ul>
             </div>

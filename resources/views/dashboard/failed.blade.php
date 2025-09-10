@@ -24,7 +24,7 @@
                                     <td>{{ $event['event_id'] }}</td>
                                     <td>{{ date('Y-m-d H:i:s', $event['timestamp'] / 1000) }}</td>
                                     <td>
-                                        <a href="{{ route('streampulse.event', [$event['topic'], $event['event_id']]) }}"
+                                        <a href="{{ route('stream-pulse.event', [$event['topic'], $event['event_id']]) }}"
                                             class="btn btn-sm btn-primary">
                                             View Details
                                         </a>
@@ -40,7 +40,7 @@
         </div>
 
         <div class="mt-3">
-            <a href="{{ route('streampulse.dashboard') }}" class="btn btn-secondary">
+            <a href="{{ route('stream-pulse.dashboard') }}" class="btn btn-secondary">
                 Back to Dashboard
             </a>
         </div>

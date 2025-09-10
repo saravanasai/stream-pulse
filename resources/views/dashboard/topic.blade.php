@@ -22,7 +22,7 @@
                                     <td>{{ $event['event_id'] }}</td>
                                     <td>{{ date('Y-m-d H:i:s', $event['timestamp'] / 1000) }}</td>
                                     <td>
-                                        <a href="{{ route('streampulse.event', [$topic, $event['event_id']]) }}"
+                                        <a href="{{ route('stream-pulse.event', [$topic, $event['event_id']]) }}"
                                             class="btn btn-sm btn-primary">
                                             View Details
                                         </a>
@@ -34,14 +34,14 @@
 
                     <div class="pagination">
                         @if ($offset > 0)
-                            <a href="{{ route('streampulse.topic', [$topic, 'offset' => max(0, $offset - $limit)]) }}"
+                            <a href="{{ route('stream-pulse.topic', [$topic, 'offset' => max(0, $offset - $limit)]) }}"
                                 class="btn btn-primary">
                                 Previous
                             </a>
                         @endif
 
                         @if (count($events) >= $limit)
-                            <a href="{{ route('streampulse.topic', [$topic, 'offset' => $offset + $limit]) }}"
+                            <a href="{{ route('stream-pulse.topic', [$topic, 'offset' => $offset + $limit]) }}"
                                 class="btn btn-primary ml-2">
                                 Next
                             </a>
@@ -54,7 +54,7 @@
         </div>
 
         <div class="mt-3">
-            <a href="{{ route('streampulse.dashboard') }}" class="btn btn-secondary">
+            <a href="{{ route('stream-pulse.dashboard') }}" class="btn btn-secondary">
                 Back to Dashboard
             </a>
         </div>

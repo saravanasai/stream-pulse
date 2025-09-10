@@ -38,13 +38,12 @@ class StreamPulseUIServiceProvider extends ServiceProvider
     protected function registerRoutes()
     {
         Route::group([
-            'prefix' => config('stream-pulse.ui.route_prefix', 'streampulse'),
-            'middleware' => ['web', 'auth'],
+            'prefix' => config('stream-pulse.ui.route_prefix', 'stream-pulse'),
         ], function () {
-            Route::get('/', [StreamPulseDashboardController::class, 'index'])->name('streampulse.dashboard');
-            Route::get('/topics/{topic}', [StreamPulseDashboardController::class, 'topic'])->name('streampulse.topic');
-            Route::get('/topics/{topic}/events/{eventId}', [StreamPulseDashboardController::class, 'event'])->name('streampulse.event');
-            Route::get('/failed', [StreamPulseDashboardController::class, 'failed'])->name('streampulse.failed');
+            Route::get('/', [StreamPulseDashboardController::class, 'index'])->name('stream-pulse.dashboard');
+            Route::get('/topics/{topic}', [StreamPulseDashboardController::class, 'topic'])->name('stream-pulse.topic');
+            Route::get('/topics/{topic}/events/{eventId}', [StreamPulseDashboardController::class, 'event'])->name('stream-pulse.event');
+            Route::get('/failed', [StreamPulseDashboardController::class, 'failed'])->name('stream-pulse.failed');
         });
     }
 }

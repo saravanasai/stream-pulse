@@ -49,7 +49,7 @@
         </div>
 
         <div class="mt-3">
-            <a href="{{ route('streampulse.topic', $topic) }}" class="btn btn-secondary">
+            <a href="{{ route('stream-pulse.topic', $topic) }}" class="btn btn-secondary">
                 Back to Topic
             </a>
         </div>
