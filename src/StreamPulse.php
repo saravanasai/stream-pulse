@@ -49,7 +49,7 @@ class StreamPulse
             return $this->callCustomCreator($name);
         }
 
-        $driverMethod = 'create'.ucfirst($name).'Driver';
+        $driverMethod = 'create' . ucfirst($name) . 'Driver';
 
         if (method_exists($this, $driverMethod)) {
             return $this->{$driverMethod}($config);
@@ -108,6 +108,23 @@ class StreamPulse
     public function publish(string $topic, array $payload): void
     {
         $this->driver()->publish($topic, $payload);
+    }
+
+    /**
+     * Publish an event to a topic after the database transaction commits.
+     * If no transaction is active, the event will be published immediately.
+     */
+    public function publishAfterCommit(string $topic, array $payload): void
+    {
+        $this->getTransactionAwareEvents()->store($topic, $payload);
+    }
+
+    /**
+     * Get the transaction-aware events instance.
+     */
+    protected function getTransactionAwareEvents(): Support\TransactionAwareEvents
+    {
+        return app()->make(Support\TransactionAwareEvents::class, ['driver' => $this->driver()]);
     }
 
     /**

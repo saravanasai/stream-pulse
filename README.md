@@ -101,6 +101,33 @@ StreamPulse::publish('orders', [
 ]);
 ```
 
+### Transaction-Aware Event Publishing
+
+Publish events only after a database transaction successfully commits:
+
+```php
+use Illuminate\Support\Facades\DB;
+use StreamPulse\StreamPulse\Facades\StreamPulse;
+
+DB::transaction(function () {
+    // Create an order in the database
+    $order = Order::create([
+        'customer_id' => 123,
+        'amount' => 99.99,
+    ]);
+
+    // This event will only be published if the transaction commits successfully
+    StreamPulse::publishAfterCommit('orders', [
+        'id' => $order->id,
+        'status' => 'created',
+        'customer_id' => $order->customer_id,
+        'amount' => $order->amount,
+    ]);
+
+    // If the transaction fails or is rolled back, no event will be published
+});
+```
+
 ### Consuming Events
 
 Consume events from a topic with a consumer group:

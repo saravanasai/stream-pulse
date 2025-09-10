@@ -7,6 +7,7 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 use StreamPulse\StreamPulse\Commands\StreamPulseCommand;
 use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
+use StreamPulse\StreamPulse\Support\TransactionAwareEvents;
 
 class StreamPulseServiceProvider extends PackageServiceProvider
 {
@@ -46,6 +47,13 @@ class StreamPulseServiceProvider extends PackageServiceProvider
             }
 
             throw new \InvalidArgumentException("Unsupported UI driver: {$driver}");
+        });
+
+        // Register the TransactionAwareEvents class
+        $this->app->bind(TransactionAwareEvents::class, function ($app) {
+            return new TransactionAwareEvents(
+                $app->make(StreamPulse::class)->driver()
+            );
         });
 
         // Register the UI Service Provider
