@@ -44,7 +44,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     protected function getStreamName(string $topic): string
     {
-        return $this->prefix . $topic;
+        return $this->prefix.$topic;
     }
 
     /**
@@ -93,7 +93,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $streamName = $this->getStreamName($topic);
 
         // Check if stream exists
-        if (!$this->redis->exists($streamName)) {
+        if (! $this->redis->exists($streamName)) {
             return;
         }
 
@@ -142,7 +142,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $pendingMessages = $this->redis->xPending($streamName, $group);
 
         // Check if there are any messages that have been pending for too long
-        if (!empty($pendingMessages) && isset($pendingMessages['pending']) && $pendingMessages['pending'] > 0) {
+        if (! empty($pendingMessages) && isset($pendingMessages['pending']) && $pendingMessages['pending'] > 0) {
             // Get details about pending messages
             $pendingDetails = $this->redis->xPendingRange($streamName, $group, '-', '+', 10);
 
@@ -165,7 +165,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname() . ':' . getmypid();
+        $consumerName = gethostname().':'.getmypid();
 
         // Create consumer group if it doesn't exist
         try {
@@ -194,7 +194,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                         // Auto-acknowledge on successful processing
                         $this->ack($topic, $messageId, $group);
                     } catch (\Exception $e) {
-                        Log::error("Error processing message {$messageId} from {$topic}: " . $e->getMessage());
+                        Log::error("Error processing message {$messageId} from {$topic}: ".$e->getMessage());
                         // Message will remain pending and can be retried
                     }
                 }
@@ -287,9 +287,9 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     public function listTopics(): array
     {
-        $pattern = $this->prefix . '*';
+        $pattern = $this->prefix.'*';
         $keys = $this->redis->keys($pattern);
-        Log::info('Redis keys found: ' . implode(', ', $keys));
+        Log::info('Redis keys found: '.implode(', ', $keys));
         $topics = [];
 
         // Get Laravel's default Redis prefix using config for runtime flexibility
@@ -362,7 +362,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         }
 
         // Also check for legacy failed streams with the FAILED_SUFFIX
-        $pattern = $this->prefix . '*' . self::FAILED_SUFFIX;
+        $pattern = $this->prefix.'*'.self::FAILED_SUFFIX;
         $keys = $this->redis->keys($pattern);
 
         foreach ($keys as $failedStreamKey) {
@@ -372,7 +372,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             foreach ($events as $eventId => $payload) {
                 $failedEvents[] = [
                     'topic' => $topic,
-                    'dlq' => $topic . self::FAILED_SUFFIX,
+                    'dlq' => $topic.self::FAILED_SUFFIX,
                     'event_id' => $eventId,
                     'payload' => $payload,
                     'timestamp' => $this->getTimestampFromId($eventId),
@@ -381,7 +381,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         }
 
         // Sort by timestamp (newest first)
-        usort($failedEvents, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+        usort($failedEvents, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);
 
         return $failedEvents;
     }
@@ -421,7 +421,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
         if (empty($events)) {
             // Check if it's in the failed events
-            $failedStreamName = $this->getStreamName($topic . self::FAILED_SUFFIX);
+            $failedStreamName = $this->getStreamName($topic.self::FAILED_SUFFIX);
             $events = $this->redis->xRange($failedStreamName, $eventId, $eventId);
 
             if (empty($events)) {

@@ -44,6 +44,7 @@ class StreamPulseCommand extends Command
      * PCNTL Signal constants for cross-platform compatibility
      */
     protected const SIGNAL_INT = 2;   // SIGINT
+
     protected const SIGNAL_TERM = 15; // SIGTERM
 
     /**
@@ -53,7 +54,7 @@ class StreamPulseCommand extends Command
     {
         $topic = $this->argument('topic');
         $group = $this->option('group') ?: config('app.name', 'laravel');
-        $consumer = $this->option('consumer') ?: gethostname() . ':' . getmypid();
+        $consumer = $this->option('consumer') ?: gethostname().':'.getmypid();
         $maxMessages = $this->option('max-messages') ? (int) $this->option('max-messages') : null;
         $sleep = (int) $this->option('sleep');
         $batchSize = (int) $this->option('batch-size');
@@ -65,9 +66,10 @@ class StreamPulseCommand extends Command
         $this->registerSignalHandlers();
 
         // Check if we have a handler for this topic
-        if (!StreamPulse::hasHandler($topic)) {
+        if (! StreamPulse::hasHandler($topic)) {
             $this->error("No handler registered for topic: {$topic}");
             $this->info("Register a handler using: StreamPulse::on('{$topic}', function (\$event) { ... })");
+
             return self::FAILURE;
         }
 
@@ -75,7 +77,7 @@ class StreamPulseCommand extends Command
 
         $this->info("Starting consumer for topic: {$topic}");
         $this->info("Consumer group: {$group}, Consumer name: {$consumer}");
-        $this->info("Press Ctrl+C to stop gracefully");
+        $this->info('Press Ctrl+C to stop gracefully');
 
         // Use a progress bar if max messages is set
         $bar = null;
@@ -112,8 +114,8 @@ class StreamPulseCommand extends Command
                     sleep($sleep);
                 }
             } catch (Throwable $e) {
-                $this->error("Error in consumer loop: " . $e->getMessage());
-                Log::error("StreamPulse consumer error", [
+                $this->error('Error in consumer loop: '.$e->getMessage());
+                Log::error('StreamPulse consumer error', [
                     'topic' => $topic,
                     'group' => $group,
                     'error' => $e->getMessage(),
@@ -131,7 +133,7 @@ class StreamPulseCommand extends Command
         }
 
         $this->info("Consumer stopped. Processed {$this->processedCount} messages, {$this->failedCount} failed.");
-        $this->info("Total runtime: " . $this->formatRuntime());
+        $this->info('Total runtime: '.$this->formatRuntime());
 
         return self::SUCCESS;
     }
@@ -153,7 +155,7 @@ class StreamPulseCommand extends Command
             });
         } else {
             // Windows or systems without pcntl
-            $this->info("Signal handling not supported on this platform. Use Ctrl+C to exit.");
+            $this->info('Signal handling not supported on this platform. Use Ctrl+C to exit.');
         }
     }
 
@@ -204,15 +206,15 @@ class StreamPulseCommand extends Command
                 } catch (Throwable $e) {
                     $this->failedCount++;
 
-                    if (!$progressBar) {
-                        $this->error("Failed to process message {$messageId}: " . $e->getMessage());
+                    if (! $progressBar) {
+                        $this->error("Failed to process message {$messageId}: ".$e->getMessage());
                     }
 
-                    Log::error("Failed to process message", [
+                    Log::error('Failed to process message', [
                         'topic' => $topic,
                         'message_id' => $messageId,
                         'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
+                        'trace' => $e->getTraceAsString(),
                     ]);
 
                     // The message will remain in pending state and be retried
@@ -220,8 +222,8 @@ class StreamPulseCommand extends Command
                 }
             }
         } catch (Throwable $e) {
-            $this->error("Error consuming batch: " . $e->getMessage());
-            Log::error("StreamPulse batch consumption error", [
+            $this->error('Error consuming batch: '.$e->getMessage());
+            Log::error('StreamPulse batch consumption error', [
                 'topic' => $topic,
                 'group' => $group,
                 'error' => $e->getMessage(),
@@ -242,6 +244,7 @@ class StreamPulseCommand extends Command
         $now = time();
         if ($lastHeartbeat === 0) {
             $lastHeartbeat = $now;
+
             return;
         }
 
@@ -267,12 +270,14 @@ class StreamPulseCommand extends Command
         if ($runtime < 3600) {
             $minutes = floor($runtime / 60);
             $seconds = $runtime % 60;
+
             return "{$minutes}m {$seconds}s";
         }
 
         $hours = floor($runtime / 3600);
         $minutes = floor(($runtime % 3600) / 60);
         $seconds = $runtime % 60;
+
         return "{$hours}h {$minutes}m {$seconds}s";
     }
 

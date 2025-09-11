@@ -54,7 +54,7 @@ class StreamPulse
             return $this->callCustomCreator($name);
         }
 
-        $driverMethod = 'create' . ucfirst($name) . 'Driver';
+        $driverMethod = 'create'.ucfirst($name).'Driver';
 
         if (method_exists($this, $driverMethod)) {
             return $this->{$driverMethod}($config);
@@ -145,7 +145,7 @@ class StreamPulse
      */
     public function validateTopic(string $topic): void
     {
-        if ($this->isStrictModeEnabled() && !$this->isTopicDefined($topic)) {
+        if ($this->isStrictModeEnabled() && ! $this->isTopicDefined($topic)) {
             throw new \InvalidArgumentException(
                 "Topic [{$topic}] is not defined in configuration. Enable it in config/stream-pulse.php before publishing."
             );
@@ -224,8 +224,8 @@ class StreamPulse
     /**
      * Register a handler for a topic.
      *
-     * @param string $topic The topic to listen for events on
-     * @param callable $handler The handler function that processes events
+     * @param  string  $topic  The topic to listen for events on
+     * @param  callable  $handler  The handler function that processes events
      * @return $this
      */
     public function on(string $topic, callable $handler): self
@@ -237,8 +237,6 @@ class StreamPulse
 
     /**
      * Get all registered handlers.
-     *
-     * @return array
      */
     public function getHandlers(): array
     {
@@ -247,9 +245,6 @@ class StreamPulse
 
     /**
      * Get the handler for a specific topic.
-     *
-     * @param string $topic
-     * @return callable|null
      */
     public function getHandler(string $topic): ?callable
     {
@@ -258,9 +253,6 @@ class StreamPulse
 
     /**
      * Check if a handler exists for a topic.
-     *
-     * @param string $topic
-     * @return bool
      */
     public function hasHandler(string $topic): bool
     {
