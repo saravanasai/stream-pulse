@@ -10,6 +10,7 @@ StreamPulse is a Laravel package for event streaming with support for multiple d
 -   Dead letter queue for failed message handling
 -   UI Dashboard for monitoring streams and events
 -   Extensible architecture to support additional drivers
+-   Strict mode for controlled topic creation
 
 ## Installation
 
@@ -45,6 +46,17 @@ return [
     |
     */
     'driver' => env('STREAMPULSE_DRIVER', 'redis'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Strict Mode
+    |--------------------------------------------------------------------------
+    |
+    | When strict mode is enabled, only topics explicitly defined in the
+    | configuration can be used. This prevents accidental topic creation.
+    |
+    */
+    'strict_mode' => env('STREAMPULSE_STRICT_MODE', true),
 
     /*
     |--------------------------------------------------------------------------

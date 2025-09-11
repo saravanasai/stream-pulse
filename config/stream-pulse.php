@@ -15,6 +15,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Strict Mode
+    |--------------------------------------------------------------------------
+    |
+    | When strict mode is enabled, only topics explicitly defined in the
+    | configuration can be used. This prevents accidental topic creation
+    | in production environments.
+    |
+    */
+    'strict_mode' => env('STREAMPULSE_STRICT_MODE', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Global Defaults
     |--------------------------------------------------------------------------
     |

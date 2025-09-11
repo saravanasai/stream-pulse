@@ -118,6 +118,36 @@ class StreamPulse
     }
 
     /**
+     * Check if a topic is defined in the configuration
+     */
+    public function isTopicDefined(string $topic): bool
+    {
+        return array_key_exists($topic, config('streampulse.topics', []));
+    }
+
+    /**
+     * Check if strict mode is enabled
+     */
+    public function isStrictModeEnabled(): bool
+    {
+        return config('streampulse.strict_mode', true);
+    }
+
+    /**
+     * Validate if a topic can be used
+     *
+     * @throws \InvalidArgumentException
+     */
+    public function validateTopic(string $topic): void
+    {
+        if ($this->isStrictModeEnabled() && !$this->isTopicDefined($topic)) {
+            throw new \InvalidArgumentException(
+                "Topic [{$topic}] is not defined in configuration. Enable it in config/stream-pulse.php before publishing."
+            );
+        }
+    }
+
+    /**
      * Create an instance of the Redis driver.
      */
     protected function createRedisDriver(): EventStoreDriver

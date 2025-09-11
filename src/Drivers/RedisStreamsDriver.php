@@ -112,6 +112,9 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     public function publish(string $topic, array $payload): void
     {
+        // Validate topic according to strict mode rules
+        app(StreamPulse::class)->validateTopic($topic);
+
         $streamName = $this->getStreamName($topic);
 
         // Format payload for Redis Streams (flat key-value pairs)
@@ -171,8 +174,11 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             // Group already exists, continue
         }
 
-        // Read from stream (pending messages first, then new ones)
-        $pendingMessages = $this->redis->xReadGroup(
+        // Check and process pending messages that exceeded max retries
+        $this->checkPendingMessages($topic, $streamName, $group);
+
+        // Read new messages from the stream
+        $newMessages = $this->redis->xReadGroup(
             $group,
             $consumerName,
             [$streamName => '>'],
