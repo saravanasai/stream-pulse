@@ -49,7 +49,7 @@ class StreamPulse
             return $this->callCustomCreator($name);
         }
 
-        $driverMethod = 'create'.ucfirst($name).'Driver';
+        $driverMethod = 'create' . ucfirst($name) . 'Driver';
 
         if (method_exists($this, $driverMethod)) {
             return $this->{$driverMethod}($config);
@@ -79,7 +79,42 @@ class StreamPulse
      */
     public function getDefaultDriver(): string
     {
-        return config('streampulse.default', 'redis');
+        return config('streampulse.driver', 'redis');
+    }
+
+    /**
+     * Get topic configuration
+     */
+    public function getTopicConfig(string $topic): array
+    {
+        $topicConfig = config("streampulse.topics.{$topic}", []);
+        $defaults = config('streampulse.defaults', []);
+
+        return array_merge($defaults, $topicConfig);
+    }
+
+    /**
+     * Get max retries for a topic
+     */
+    public function getMaxRetries(string $topic): int
+    {
+        return $this->getTopicConfig($topic)['max_retries'] ?? 3;
+    }
+
+    /**
+     * Get dead letter queue name for a topic
+     */
+    public function getDLQ(string $topic): string
+    {
+        return $this->getTopicConfig($topic)['dlq'] ?? 'dead_letter';
+    }
+
+    /**
+     * Get retention setting for a topic
+     */
+    public function getRetention(string $topic): int
+    {
+        return $this->getTopicConfig($topic)['retention'] ?? 1000;
     }
 
     /**

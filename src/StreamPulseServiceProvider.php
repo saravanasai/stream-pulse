@@ -40,7 +40,7 @@ class StreamPulseServiceProvider extends PackageServiceProvider
         // Register the UI Interface - using the same driver instance as the event store
         // This allows for a single connection to be used for both publishing/consuming and UI operations
         $this->app->singleton(StreamUIInterface::class, function ($app) {
-            $driver = config('streampulse.default', 'redis');
+            $driver = config('streampulse.driver', 'redis');
 
             if ($driver === 'redis') {
                 return $app->make(RedisStreamsDriver::class);

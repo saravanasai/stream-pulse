@@ -37,46 +37,51 @@ This is the contents of the published config file:
 return [
     /*
     |--------------------------------------------------------------------------
-    | Default Stream Driver
+    | Default Driver
     |--------------------------------------------------------------------------
     |
-    | This option controls the default stream driver that will be used for
-    | event streaming. Supported drivers: "redis", "null"
+    | StreamPulse supports multiple backends. Choose which driver to use
+    | globally. Available: "redis", "nats"
     |
     */
-    'default' => env('STREAMPULSE_DRIVER', 'redis'),
+    'driver' => env('STREAMPULSE_DRIVER', 'redis'),
 
     /*
     |--------------------------------------------------------------------------
-    | Stream Drivers
+    | Global Defaults
     |--------------------------------------------------------------------------
     |
-    | Here you may configure the stream drivers for your application.
-    | Available drivers: "redis"
+    | These settings apply to all topics unless overridden below.
     |
     */
-    'drivers' => [
-        'redis' => [
-            'connection' => env('REDIS_CONNECTION', 'default'),
-            'stream_prefix' => 'streampulse:',
+    'defaults' => [
+        'max_retries' => 3,
+        'dlq' => 'dead_letter',
+        'retention' => 1000, // Redis only: default max length
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Topics
+    |--------------------------------------------------------------------------
+    |
+    | Define per-topic configuration. Each topic can override retry count,
+    | DLQ destination, and retention policy.
+    |
+    */
+    'topics' => [
+        'orders' => [
+            'max_retries' => 5,
+            'dlq' => 'orders_dlq',
+            'retention' => 5000,
         ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | UI Settings
-    |--------------------------------------------------------------------------
-    |
-    | Settings specific to the StreamPulse UI dashboard.
-    |
-    */
-    'ui' => [
-        'enabled' => env('STREAMPULSE_UI_ENABLED', true),
-        'page_size' => env('STREAMPULSE_UI_PAGE_SIZE', 50),
-        'route_prefix' => 'streampulse',
-    ],
+    // Additional configuration...
 ];
 ```
+
+For detailed configuration information, check the [Configuration Guide](docs/configuration.md).
 
 ## Usage
 
@@ -94,6 +99,40 @@ StreamPulse::publish('orders', [
     'customer_id' => 123,
     'amount' => 99.99,
 ]);
+```
+
+### Stream Retention Management
+
+StreamPulse automatically manages Redis streams to prevent unbounded growth:
+
+```php
+// Define global defaults in config/streampulse.php
+'defaults' => [
+    'retention' => 1000, // Keep 1000 events per stream by default
+],
+
+// Override for specific topics
+'topics' => [
+    'orders' => [
+        'retention' => 5000, // Keep more events for important topics
+    ],
+    'logs' => [
+        'retention' => 500, // Keep fewer events for high-volume topics
+    ],
+],
+```
+
+You can also manually trim streams with the provided Artisan command:
+
+```bash
+# Trim a specific topic to its configured retention limit
+php artisan streampulse:trim orders
+
+# Trim all topics
+php artisan streampulse:trim --all
+
+# Override the retention length
+php artisan streampulse:trim orders --length=100
 ```
 
 ### Transaction-Aware Event Publishing

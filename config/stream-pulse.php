@@ -1,31 +1,71 @@
 <?php
 
-// config for StreamPulse/StreamPulse
 return [
-    /*
-    |--------------------------------------------------------------------------
-    | Default Stream Driver
-    |--------------------------------------------------------------------------
-    |
-    | This option controls the default stream driver that will be used for
-    | event streaming. Supported drivers: "redis", "null"
-    |
-    */
-    'default' => env('STREAMPULSE_DRIVER', 'redis'),
 
     /*
     |--------------------------------------------------------------------------
-    | Stream Drivers
+    | Default Driver
     |--------------------------------------------------------------------------
     |
-    | Here you may configure the stream drivers for your application.
-    | Available drivers: "redis"
+    | StreamPulse supports multiple backends. Choose which driver to use
+    | globally. Available: "redis", "nats"
+    |
+    */
+    'driver' => env('STREAMPULSE_DRIVER', 'redis'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Global Defaults
+    |--------------------------------------------------------------------------
+    |
+    | These settings apply to all topics unless overridden below.
+    |
+    */
+    'defaults' => [
+        'max_retries' => 3,
+        'dlq' => 'dead_letter',
+        'retention' => 1000, // Redis only: default max length
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Topics
+    |--------------------------------------------------------------------------
+    |
+    | Define per-topic configuration. Each topic can override retry count,
+    | DLQ destination, and retention policy.
+    |
+    */
+    'topics' => [
+        'orders' => [
+            'max_retries' => 5,
+            'dlq' => 'orders_dlq',
+            'retention' => 5000,
+        ],
+        'notifications' => [
+            'max_retries' => 2,
+            'retention' => 2000,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Drivers
+    |--------------------------------------------------------------------------
+    |
+    | Backend-specific configuration. Redis has retention settings,
+    | NATS is just a placeholder for now.
     |
     */
     'drivers' => [
         'redis' => [
-            'connection' => env('REDIS_CONNECTION', 'localhost:6379'),
+            'connection' => env('REDIS_CONNECTION', 'default'),
             'stream_prefix' => 'streampulse:',
+        ],
+
+        'nats' => [
+            'servers' => env('NATS_SERVERS', 'nats://127.0.0.1:4222'),
+            // Future: retention, streams, consumer groups
         ],
     ],
 
