@@ -203,6 +203,46 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     }
 
     /**
+     * Consume a batch of messages from a topic.
+     * Returns an array of message ID => payload.
+     */
+    public function consumeBatch(string $topic, string $group, string $consumer, int $count, int $timeout = 0): array
+    {
+        $streamName = $this->getStreamName($topic);
+        $result = [];
+
+        // Create consumer group if it doesn't exist
+        try {
+            $this->redis->xGroup('CREATE', $streamName, $group, '0', true);
+        } catch (\Exception $e) {
+            // Group already exists, continue
+        }
+
+        // Check and process pending messages that exceeded max retries
+        $this->checkPendingMessages($topic, $streamName, $group);
+
+        // Convert timeout to milliseconds for Redis
+        $timeoutMs = $timeout > 0 ? $timeout * 1000 : 1000;
+
+        // Read messages from the stream
+        $messages = $this->redis->xReadGroup(
+            $group,
+            $consumer,
+            [$streamName => '>'],
+            $count,
+            $timeoutMs
+        );
+
+        if ($messages && isset($messages[$streamName])) {
+            foreach ($messages[$streamName] as $messageId => $payload) {
+                $result[$messageId] = $payload;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Acknowledge a message as processed.
      */
     public function ack(string $topic, string $messageId, string $group): void

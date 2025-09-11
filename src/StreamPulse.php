@@ -18,6 +18,11 @@ class StreamPulse
     protected array $customCreators = [];
 
     /**
+     * The registered event handlers.
+     */
+    protected array $handlers = [];
+
+    /**
      * Get a driver instance.
      */
     public function driver(?string $name = null): EventStoreDriver
@@ -214,5 +219,51 @@ class StreamPulse
     public function fail(string $topic, string $messageId, string $group): void
     {
         $this->driver()->fail($topic, $messageId, $group);
+    }
+
+    /**
+     * Register a handler for a topic.
+     *
+     * @param string $topic The topic to listen for events on
+     * @param callable $handler The handler function that processes events
+     * @return $this
+     */
+    public function on(string $topic, callable $handler): self
+    {
+        $this->handlers[$topic] = $handler;
+
+        return $this;
+    }
+
+    /**
+     * Get all registered handlers.
+     *
+     * @return array
+     */
+    public function getHandlers(): array
+    {
+        return $this->handlers;
+    }
+
+    /**
+     * Get the handler for a specific topic.
+     *
+     * @param string $topic
+     * @return callable|null
+     */
+    public function getHandler(string $topic): ?callable
+    {
+        return $this->handlers[$topic] ?? null;
+    }
+
+    /**
+     * Check if a handler exists for a topic.
+     *
+     * @param string $topic
+     * @return bool
+     */
+    public function hasHandler(string $topic): bool
+    {
+        return isset($this->handlers[$topic]);
     }
 }

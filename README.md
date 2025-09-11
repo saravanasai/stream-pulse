@@ -32,6 +32,8 @@ You can also publish the views to customize the UI dashboard:
 php artisan vendor:publish --tag="stream-pulse-views"
 ```
 
+For a complete step-by-step setup, check the [Quick Start Guide](docs/quick-start.md).
+
 This is the contents of the published config file:
 
 ```php
@@ -98,6 +100,67 @@ For detailed configuration information, check the [Configuration Guide](docs/con
 ## Usage
 
 ### Publishing Events
+
+StreamPulse provides a simple API for publishing events to any configured topic:
+
+```php
+use StreamPulse\StreamPulse\Facades\StreamPulse;
+
+// Publish an event to a topic
+StreamPulse::publish('orders', [
+    'id' => 1234,
+    'customer' => 'John Doe',
+    'total' => 99.99,
+    'items' => [
+        ['product_id' => 101, 'quantity' => 2, 'price' => 49.99]
+    ]
+]);
+
+// Publish after DB transaction commits
+StreamPulse::publishAfterCommit('orders', $orderData);
+```
+
+### Consuming Events with Handlers
+
+The recommended way to consume events is to register handlers for your topics:
+
+```php
+// In a service provider
+StreamPulse::on('orders', function ($payload, $messageId) {
+    // Process the order
+    OrderProcessor::process($payload);
+});
+
+// Then run the consumer command
+// php artisan streampulse:consume orders
+```
+
+The consumer command will handle all the complexities of polling, acknowledgments, retries, and DLQ management for you.
+
+See the [Consumer API documentation](docs/consumer-api.md) for more details on event handling, retry policies, and scaling.
+
+### Low-level Consumption API
+
+For more control, you can use the low-level consumption API:
+
+```php
+use StreamPulse\StreamPulse\Facades\StreamPulse;
+
+// Consume events from a topic with a consumer group
+StreamPulse::consume('orders', 'order-processors', function ($payload, $messageId) {
+    try {
+        // Process the event
+        OrderProcessor::process($payload);
+
+        // Acknowledge the message as processed
+        StreamPulse::ack('orders', $messageId, 'order-processors');
+    } catch (\Exception $e) {
+        // Handle error
+        // The message will remain in pending state and can be retried
+        // After max retries, it will be moved to the DLQ automatically
+    }
+});
+```
 
 Publish events to a specified topic:
 
