@@ -5,119 +5,73 @@ namespace StreamPulse\StreamPulse\Drivers;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
-use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
-use StreamPulse\StreamPulse\StreamPulse;
 
-class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
+class RedisStreamsDriver implements EventStoreDriver
 {
-    /**
-     * Suffix for failed events streams.
-     */
-    private const FAILED_SUFFIX = ':failed';
 
-    /**
-     * Redis connection.
-     *
-     * @var mixed
-     */
     protected $redis;
-
-    /**
-     * Stream prefix.
-     */
     protected string $prefix;
+    protected string $fullPrefix;
 
-    /**
-     * Create a new Redis Streams driver instance.
-     *
-     * @return void
-     */
     public function __construct()
     {
-        $connectionName = config('streampulse.drivers.redis.connection', 'default');
+        $connectionName = config('stream-pulse.drivers.redis.connection', 'default');
         $this->redis = Redis::connection($connectionName)->client();
-        $this->prefix = config('streampulse.drivers.redis.stream_prefix', 'streampulse:');
+        // Get Laravel's Redis prefix
+        $redisPrefix = config('database.redis.options.prefix');
+
+        // Get our specific stream prefix
+        $streamPrefix = config('stream-pulse.drivers.redis.stream_prefix', 'stream-pulse:');
+
+        // Store both prefixes
+        $this->prefix = $streamPrefix;
+        $this->fullPrefix = (string) $redisPrefix . $streamPrefix;
     }
 
-    /**
-     * Get the full stream name with prefix.
-     */
     protected function getStreamName(string $topic): string
     {
-        return $this->prefix.$topic;
+        return $this->prefix . $topic;
     }
 
-    /**
-     * Get stream retention setting for a topic
-     */
     protected function getRetention(string $topic): int
     {
-        return app(StreamPulse::class)->getRetention($topic);
+        return config(
+            "stream-pulse.topics.{$topic}.retention",
+            config('stream-pulse.defaults.retention', 1000)
+        );
     }
 
-    /**
-     * Apply retention policy to a stream
-     */
     protected function applyRetention(string $topic): void
     {
         $streamName = $this->getStreamName($topic);
         $retention = $this->getRetention($topic);
 
         if ($retention > 0) {
-            // Use approximate trimming for better performance
             $this->redis->xTrim($streamName, 'MAXLEN', '~', $retention);
         }
     }
 
-    /**
-     * Get max retries for a topic
-     */
     protected function getMaxRetries(string $topic): int
     {
-        return app(StreamPulse::class)->getMaxRetries($topic);
+        return config(
+            "stream-pulse.topics.{$topic}.max_retries",
+            config('stream-pulse.defaults.max_retries', 3)
+        );
     }
 
-    /**
-     * Get DLQ for a topic
-     */
     protected function getDLQ(string $topic): string
     {
-        return app(StreamPulse::class)->getDLQ($topic);
+        $dlq = config("stream-pulse.topics.{$topic}.dlq");
+        if (is_null($dlq)) {
+            $dlq = config('stream-pulse.defaults.dlq');
+        }
+        return $dlq;
     }
 
-    /**
-     * Manually trim a stream to a specific length
-     */
-    public function trimStream(string $topic, int $length): void
-    {
-        $streamName = $this->getStreamName($topic);
-
-        // Check if stream exists
-        if (! $this->redis->exists($streamName)) {
-            return;
-        }
-
-        // Apply precise trim to exact length
-        $this->redis->xTrim($streamName, 'MAXLEN', $length);
-
-        // Also check for a failed stream and trim it
-        $failedStreamName = $this->getStreamName($this->getDLQ($topic));
-        if ($this->redis->exists($failedStreamName)) {
-            $this->redis->xTrim($failedStreamName, 'MAXLEN', $length);
-        }
-    }
-
-    /**
-     * Publish an event to a topic.
-     */
     public function publish(string $topic, array $payload): void
     {
-        // Validate topic according to strict mode rules
-        app(StreamPulse::class)->validateTopic($topic);
-
         $streamName = $this->getStreamName($topic);
 
-        // Format payload for Redis Streams (flat key-value pairs)
         $formattedPayload = [];
         foreach ($payload as $key => $value) {
             $formattedPayload[$key] = is_array($value) || is_object($value)
@@ -126,31 +80,21 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         }
 
         $this->redis->xAdd($streamName, '*', $formattedPayload);
-
-        // Apply retention policy after publishing
         $this->applyRetention($topic);
     }
 
-    /**
-     * Check pending messages for max retries
-     */
     protected function checkPendingMessages(string $topic, string $streamName, string $group): void
     {
         $maxRetries = $this->getMaxRetries($topic);
-
-        // Get summary of pending messages
         $pendingMessages = $this->redis->xPending($streamName, $group);
 
-        // Check if there are any messages that have been pending for too long
         if (! empty($pendingMessages) && isset($pendingMessages['pending']) && $pendingMessages['pending'] > 0) {
-            // Get details about pending messages
             $pendingDetails = $this->redis->xPendingRange($streamName, $group, '-', '+', 10);
 
             foreach ($pendingDetails as $pending) {
                 $messageId = $pending[0];
                 $deliveryCount = $pending[3];
 
-                // If message has been delivered too many times, move to DLQ
                 if ($deliveryCount >= $maxRetries) {
                     $this->fail($topic, $messageId, $group);
                     Log::warning("Message {$messageId} in topic {$topic} exceeded max retries ({$maxRetries}) and was moved to DLQ");
@@ -159,31 +103,25 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         }
     }
 
-    /**
-     * Consume events from a topic.
-     */
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname().':'.getmypid();
+        $consumerName = gethostname() . ':' . getmypid();
 
-        // Create consumer group if it doesn't exist
         try {
             $this->redis->xGroup('CREATE', $streamName, $group, '0', true);
         } catch (\Exception $e) {
             // Group already exists, continue
         }
 
-        // Check and process pending messages that exceeded max retries
         $this->checkPendingMessages($topic, $streamName, $group);
 
-        // Read new messages from the stream
         $newMessages = $this->redis->xReadGroup(
             $group,
             $consumerName,
             [$streamName => '>'],
-            10, // Count
-            1000   // Block for 1 second
+            10,
+            1000
         );
 
         if ($newMessages) {
@@ -191,92 +129,35 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                 foreach ($messages as $messageId => $payload) {
                     try {
                         $callback($payload, $messageId);
-                        // Auto-acknowledge on successful processing
                         $this->ack($topic, $messageId, $group);
                     } catch (\Exception $e) {
-                        Log::error("Error processing message {$messageId} from {$topic}: ".$e->getMessage());
-                        // Message will remain pending and can be retried
+                        Log::error("Error processing message {$messageId} from {$topic}: " . $e->getMessage());
                     }
                 }
             }
         }
     }
 
-    /**
-     * Consume a batch of messages from a topic.
-     * Returns an array of message ID => payload.
-     */
-    public function consumeBatch(string $topic, string $group, string $consumer, int $count, int $timeout = 0): array
-    {
-        $streamName = $this->getStreamName($topic);
-        $result = [];
-
-        // Create consumer group if it doesn't exist
-        try {
-            $this->redis->xGroup('CREATE', $streamName, $group, '0', true);
-        } catch (\Exception $e) {
-            // Group already exists, continue
-        }
-
-        // Check and process pending messages that exceeded max retries
-        $this->checkPendingMessages($topic, $streamName, $group);
-
-        // Convert timeout to milliseconds for Redis
-        $timeoutMs = $timeout > 0 ? $timeout * 1000 : 1000;
-
-        // Read messages from the stream
-        $messages = $this->redis->xReadGroup(
-            $group,
-            $consumer,
-            [$streamName => '>'],
-            $count,
-            $timeoutMs
-        );
-
-        if ($messages && isset($messages[$streamName])) {
-            foreach ($messages[$streamName] as $messageId => $payload) {
-                $result[$messageId] = $payload;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Acknowledge a message as processed.
-     */
     public function ack(string $topic, string $messageId, string $group): void
     {
         $streamName = $this->getStreamName($topic);
         $this->redis->xAck($streamName, $group, [$messageId]);
     }
 
-    /**
-     * Mark a message as failed.
-     */
     public function fail(string $topic, string $messageId, string $group): void
     {
-        // Get the configured dead letter queue
         $dlqName = $this->getDLQ($topic);
-
         $streamName = $this->getStreamName($topic);
         $deadLetterStream = $this->getStreamName($dlqName);
 
-        // Get the message from the pending list
         $pendingMessages = $this->redis->xPendingRange($streamName, $group, $messageId, $messageId, 1);
 
         if (! empty($pendingMessages)) {
-            // Get the actual message content
             $message = $this->redis->xRange($streamName, $messageId, $messageId);
 
             if (! empty($message)) {
-                // Move to dead letter queue
                 $this->redis->xAdd($deadLetterStream, '*', $message[$messageId]);
-
-                // Apply retention policy to the DLQ too
                 $this->applyRetention($dlqName);
-
-                // Acknowledge the original message
                 $this->redis->xAck($streamName, $group, [$messageId]);
             }
         }
@@ -287,27 +168,15 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     public function listTopics(): array
     {
-        $pattern = $this->prefix.'*';
+        // We need to use the full prefix (Laravel + stream) when searching for keys
+        $pattern = $this->fullPrefix . '*';
         $keys = $this->redis->keys($pattern);
-        Log::info('Redis keys found: '.implode(', ', $keys));
         $topics = [];
 
-        // Get Laravel's default Redis prefix using config for runtime flexibility
-        $laravelPrefix = config('database.redis.options.prefix', '');
-
         foreach ($keys as $key) {
-            // Skip the failed topics
-            if (! str_contains($key, self::FAILED_SUFFIX)) {
-                // Remove both Laravel and package prefixes
-                $topic = $key;
-                if (str_starts_with($topic, $laravelPrefix)) {
-                    $topic = substr($topic, strlen($laravelPrefix));
-                }
-                if (str_starts_with($topic, $this->prefix)) {
-                    $topic = substr($topic, strlen($this->prefix));
-                }
-                $topics[] = $topic;
-            }
+            // Skip failed topics/DLQs
+            $topic = str_replace($this->fullPrefix, '', $key);
+            $topics[] = $topic;
         }
 
         return $topics;
@@ -322,16 +191,14 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
         // Get all configured DLQs from topics
         $dlqs = [];
-        $topics = $this->listTopics();
 
         // Add the default DLQ
-        $dlqs[] = config('streampulse.defaults.dlq', 'dead_letter');
+        $dlqs[] = config('stream-pulse.defaults.dlq', 'dead_letter');
 
         // Add topic-specific DLQs
-        foreach ($topics as $topic) {
-            $topicConfig = config("streampulse.topics.{$topic}", []);
-            if (isset($topicConfig['dlq'])) {
-                $dlqs[] = $topicConfig['dlq'];
+        foreach (config('stream-pulse.topics', []) as $topic => $config) {
+            if (isset($config['dlq'])) {
+                $dlqs[] = $config['dlq'];
             }
         }
 
@@ -356,32 +223,11 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                         'event_id' => $eventId,
                         'payload' => $payload,
                         'timestamp' => $this->getTimestampFromId($eventId),
+                        'is_failed' => true,
                     ];
                 }
             }
         }
-
-        // Also check for legacy failed streams with the FAILED_SUFFIX
-        $pattern = $this->prefix.'*'.self::FAILED_SUFFIX;
-        $keys = $this->redis->keys($pattern);
-
-        foreach ($keys as $failedStreamKey) {
-            $topic = str_replace([$this->prefix, self::FAILED_SUFFIX], '', $failedStreamKey);
-            $events = $this->redis->xRange($failedStreamKey, '-', '+', 100);
-
-            foreach ($events as $eventId => $payload) {
-                $failedEvents[] = [
-                    'topic' => $topic,
-                    'dlq' => $topic.self::FAILED_SUFFIX,
-                    'event_id' => $eventId,
-                    'payload' => $payload,
-                    'timestamp' => $this->getTimestampFromId($eventId),
-                ];
-            }
-        }
-
-        // Sort by timestamp (newest first)
-        usort($failedEvents, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);
 
         return $failedEvents;
     }
@@ -394,7 +240,12 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $streamName = $this->getStreamName($topic);
         $events = [];
 
-        // Get all events from newest to oldest
+        // Check if stream exists
+        if (! $this->redis->exists($streamName)) {
+            return [];
+        }
+
+        // Get events from newest to oldest with pagination
         $streamEvents = $this->redis->xRevRange($streamName, '+', '-', $limit + $offset);
 
         // Apply offset
@@ -405,6 +256,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                 'event_id' => $eventId,
                 'payload' => $payload,
                 'timestamp' => $this->getTimestampFromId($eventId),
+                'topic' => $topic,
             ];
         }
 
@@ -421,12 +273,17 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
         if (empty($events)) {
             // Check if it's in the failed events
-            $failedStreamName = $this->getStreamName($topic.self::FAILED_SUFFIX);
-            $events = $this->redis->xRange($failedStreamName, $eventId, $eventId);
+            $dlqName = $this->getDLQ($topic);
+            $deadLetterStream = $this->getStreamName($dlqName);
+            $events = $this->redis->xRange($deadLetterStream, $eventId, $eventId);
 
             if (empty($events)) {
                 return []; // Event not found
             }
+
+            $isFailed = true;
+        } else {
+            $isFailed = false;
         }
 
         $payload = reset($events);
@@ -436,7 +293,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             'topic' => $topic,
             'payload' => $payload,
             'timestamp' => $this->getTimestampFromId($eventId),
-            'is_failed' => empty($this->redis->xRange($streamName, $eventId, $eventId)),
+            'is_failed' => $isFailed,
         ];
     }
 

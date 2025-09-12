@@ -20,7 +20,7 @@ class StreamPulseServiceProvider extends PackageServiceProvider
          */
         $package
             ->name('stream-pulse')
-            ->hasConfigFile()
+            ->hasConfigFile('stream-pulse')
             ->hasViews()
             ->hasMigration('create_stream_pulse_table')
             ->hasCommand(StreamPulseCommand::class);
@@ -52,7 +52,7 @@ class StreamPulseServiceProvider extends PackageServiceProvider
         // Register the TransactionAwareEvents class
         $this->app->bind(TransactionAwareEvents::class, function ($app) {
             return new TransactionAwareEvents(
-                $app->make(StreamPulse::class)->driver()
+                $app->make(StreamPulse::class)->getDriver()
             );
         });
 

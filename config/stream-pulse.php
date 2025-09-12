@@ -23,10 +23,10 @@ return [
     | in production environments.
     |
     */
-    'strict_mode' => env('STREAMPULSE_STRICT_MODE', false),
+    'strict_mode' => env('STREAMPULSE_STRICT_MODE', true),
 
     /*
-    |--------------------------------------------------------------------------
+    |-----------------------------------------------------------------
     | Global Defaults
     |--------------------------------------------------------------------------
     |

@@ -2,260 +2,118 @@
 
 namespace StreamPulse\StreamPulse;
 
+
 use InvalidArgumentException;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
+use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 
 class StreamPulse
 {
-    /**
-     * The array of created drivers.
-     */
-    protected array $drivers = [];
+    protected static array $handlers = [];
+    protected static ?EventStoreDriver $driverInstance = null;
+
+    private const DRIVER_REDIS = 'redis';
 
     /**
-     * The registered custom driver creators.
+     * Get the driver name from config.
      */
-    protected array $customCreators = [];
-
-    /**
-     * The registered event handlers.
-     */
-    protected array $handlers = [];
-
-    /**
-     * Get a driver instance.
-     */
-    public function driver(?string $name = null): EventStoreDriver
+    protected static function getDriverName(): string
     {
-        $name = $name ?: $this->getDefaultDriver();
-
-        return $this->drivers[$name] = $this->get($name);
+        return config('stream-pulse.driver', 'redis');
     }
 
     /**
-     * Get a driver instance.
+     * Resolve and cache the driver instance.
      */
-    protected function get(string $name): EventStoreDriver
+    public static function getDriver(): EventStoreDriver
     {
-        return $this->drivers[$name] ?? $this->resolve($name);
-    }
-
-    /**
-     * Resolve the given driver.
-     *
-     *
-     * @throws \InvalidArgumentException
-     */
-    protected function resolve(string $name): EventStoreDriver
-    {
-        $config = $this->getConfig($name);
-
-        if (isset($this->customCreators[$name])) {
-            return $this->callCustomCreator($name);
+        if (self::$driverInstance) {
+            return self::$driverInstance;
         }
 
-        $driverMethod = 'create'.ucfirst($name).'Driver';
+        $driver = self::getDriverName();
 
-        if (method_exists($this, $driverMethod)) {
-            return $this->{$driverMethod}($config);
+        switch ($driver) {
+            case self::DRIVER_REDIS:
+                self::$driverInstance = new RedisStreamsDriver();
+                break;
+            default:
+                throw new InvalidArgumentException("Driver [$driver] is not supported.");
         }
 
-        throw new InvalidArgumentException("Driver [{$name}] is not supported.");
+        return self::$driverInstance;
     }
 
     /**
-     * Call a custom driver creator.
+     * Get topic config, merged with defaults and optional overrides.
      */
-    protected function callCustomCreator(string $name): EventStoreDriver
+    protected static function getTopicConfig(string $topic): array
     {
-        return $this->customCreators[$name]($this->getConfig($name));
-    }
-
-    /**
-     * Get the configuration for a driver.
-     */
-    protected function getConfig(string $name): array
-    {
-        return config("streampulse.drivers.{$name}", []);
-    }
-
-    /**
-     * Get the default driver name.
-     */
-    public function getDefaultDriver(): string
-    {
-        return config('streampulse.driver', 'redis');
-    }
-
-    /**
-     * Get topic configuration
-     */
-    public function getTopicConfig(string $topic): array
-    {
-        $topicConfig = config("streampulse.topics.{$topic}", []);
-        $defaults = config('streampulse.defaults', []);
-
+        $defaults = config('stream-pulse.defaults', []);
+        $topicConfig = config("stream-pulse.topics.$topic", []);
         return array_merge($defaults, $topicConfig);
-    }
-
-    /**
-     * Get max retries for a topic
-     */
-    public function getMaxRetries(string $topic): int
-    {
-        return $this->getTopicConfig($topic)['max_retries'] ?? 3;
-    }
-
-    /**
-     * Get dead letter queue name for a topic
-     */
-    public function getDLQ(string $topic): string
-    {
-        return $this->getTopicConfig($topic)['dlq'] ?? 'dead_letter';
-    }
-
-    /**
-     * Get retention setting for a topic
-     */
-    public function getRetention(string $topic): int
-    {
-        return $this->getTopicConfig($topic)['retention'] ?? 1000;
-    }
-
-    /**
-     * Check if a topic is defined in the configuration
-     */
-    public function isTopicDefined(string $topic): bool
-    {
-        return array_key_exists($topic, config('streampulse.topics', []));
-    }
-
-    /**
-     * Check if strict mode is enabled
-     */
-    public function isStrictModeEnabled(): bool
-    {
-        return config('streampulse.strict_mode', true);
-    }
-
-    /**
-     * Validate if a topic can be used
-     *
-     * @throws \InvalidArgumentException
-     */
-    public function validateTopic(string $topic): void
-    {
-        if ($this->isStrictModeEnabled() && ! $this->isTopicDefined($topic)) {
-            throw new \InvalidArgumentException(
-                "Topic [{$topic}] is not defined in configuration. Enable it in config/stream-pulse.php before publishing."
-            );
-        }
-    }
-
-    /**
-     * Create an instance of the Redis driver.
-     */
-    protected function createRedisDriver(): EventStoreDriver
-    {
-        return app(Drivers\RedisStreamsDriver::class);
-    }
-
-    /**
-     * Register a custom driver creator Closure.
-     *
-     * @return $this
-     */
-    public function extend(string $driver, \Closure $callback): self
-    {
-        $this->customCreators[$driver] = $callback;
-
-        return $this;
     }
 
     /**
      * Publish an event to a topic.
      */
-    public function publish(string $topic, array $payload): void
+    public static function publish(string $topic, array $payload): void
     {
-        $this->driver()->publish($topic, $payload);
+        self::validateTopic($topic);
+
+        $config = self::getTopicConfig($topic);
+        $driver = self::getDriver();
+
+        $driver->publish($topic, $payload, $config);
     }
 
     /**
-     * Publish an event to a topic after the database transaction commits.
-     * If no transaction is active, the event will be published immediately.
+     * Publish after DB transaction commits.
      */
-    public function publishAfterCommit(string $topic, array $payload): void
+    public static function publishAfterCommit(string $topic, array $payload): void
     {
-        $this->getTransactionAwareEvents()->store($topic, $payload);
+        self::validateTopic($topic);
+        app(Support\TransactionAwareEvents::class)->store($topic, $payload);
     }
 
     /**
-     * Get the transaction-aware events instance.
+     * Register a handler for a topic.
      */
-    protected function getTransactionAwareEvents(): Support\TransactionAwareEvents
+    public static function on(string $topic, callable $handler): void
     {
-        return app()->make(Support\TransactionAwareEvents::class, ['driver' => $this->driver()]);
+        self::$handlers[$topic] = $handler;
+    }
+
+    public static function getHandler(string $topic): ?callable
+    {
+        return self::$handlers[$topic] ?? null;
     }
 
     /**
      * Consume events from a topic.
      */
-    public function consume(string $topic, string $group, callable $callback): void
+    public static function consume(string $topic, string $group, ?callable $callback = null): void
     {
-        $this->driver()->consume($topic, $callback, $group);
+        self::validateTopic($topic);
+
+        $driver = self::getDriver();
+        $handler = $callback ?? (self::$handlers[$topic] ?? null);
+
+        $driver->consume($topic,  $handler, $group);
     }
 
     /**
-     * Acknowledge a message as processed.
+     * Validate topic existence if strict mode is enabled.
      */
-    public function ack(string $topic, string $messageId, string $group): void
+    public static function validateTopic(string $topic): void
     {
-        $this->driver()->ack($topic, $messageId, $group);
-    }
+        $strict = config('stream-pulse.strict_mode', false);
+        $topics = array_keys(config('stream-pulse.topics', []));
 
-    /**
-     * Mark a message as failed.
-     */
-    public function fail(string $topic, string $messageId, string $group): void
-    {
-        $this->driver()->fail($topic, $messageId, $group);
-    }
-
-    /**
-     * Register a handler for a topic.
-     *
-     * @param  string  $topic  The topic to listen for events on
-     * @param  callable  $handler  The handler function that processes events
-     * @return $this
-     */
-    public function on(string $topic, callable $handler): self
-    {
-        $this->handlers[$topic] = $handler;
-
-        return $this;
-    }
-
-    /**
-     * Get all registered handlers.
-     */
-    public function getHandlers(): array
-    {
-        return $this->handlers;
-    }
-
-    /**
-     * Get the handler for a specific topic.
-     */
-    public function getHandler(string $topic): ?callable
-    {
-        return $this->handlers[$topic] ?? null;
-    }
-
-    /**
-     * Check if a handler exists for a topic.
-     */
-    public function hasHandler(string $topic): bool
-    {
-        return isset($this->handlers[$topic]);
+        if ($strict && !in_array($topic, $topics)) {
+            throw new InvalidArgumentException(
+                "Topic [$topic] is not defined in configuration. Enable it in config/stream-pulse.php before publishing."
+            );
+        }
     }
 }

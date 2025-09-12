@@ -15,12 +15,6 @@ interface EventStoreDriver
     public function consume(string $topic, callable $callback, string $group): void;
 
     /**
-     * Consume a batch of messages from a topic.
-     * Returns an array of message ID => payload.
-     */
-    public function consumeBatch(string $topic, string $group, string $consumer, int $count, int $timeout = 0): array;
-
-    /**
      * Acknowledge a message as processed.
      */
     public function ack(string $topic, string $messageId, string $group): void;
