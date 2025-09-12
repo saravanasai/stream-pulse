@@ -5,8 +5,9 @@ namespace StreamPulse\StreamPulse\Drivers;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
+use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 
-class RedisStreamsDriver implements EventStoreDriver
+class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 {
 
     protected $redis;
