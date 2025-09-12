@@ -26,7 +26,7 @@ class StreamPulseCommand extends Command
     {
         $topic = $this->argument('topic');
         $group = $this->option('group') ?: config('app.name', 'laravel');
-        $consumer = $this->option('consumer') ?: gethostname() . ':' . getmypid();
+        $consumer = $this->option('consumer') ?: gethostname().':'.getmypid();
 
         StreamPulse::validateTopic($topic);
 
@@ -42,26 +42,27 @@ class StreamPulseCommand extends Command
                 $handler($payload, $messageId);
                 // Ack the message after successful processing
                 StreamPulse::getDriver()->ack($topic, $messageId, $group);
-                Log::info("[StreamPulse] Processed message", [
+                Log::info('[StreamPulse] Processed message', [
                     'topic' => $topic,
                     'message_id' => $messageId,
                     'payload' => $payload,
                 ]);
                 $this->info("[StreamPulse] Processed message {$messageId} for topic {$topic}");
             } catch (\Throwable $e) {
-                Log::error("[StreamPulse] Failed to process message", [
+                Log::error('[StreamPulse] Failed to process message', [
                     'topic' => $topic,
                     'message_id' => $messageId,
                     'payload' => $payload,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
-                $this->error("[StreamPulse] Failed to process message {$messageId} for topic {$topic}: " . $e->getMessage());
+                $this->error("[StreamPulse] Failed to process message {$messageId} for topic {$topic}: ".$e->getMessage());
                 // Do not ack, message will remain pending and be retried or sent to DLQ
             }
         });
 
         $this->info("[StreamPulse] Consumer stopped for topic: {$topic}, group: {$group}");
+
         return self::SUCCESS;
     }
 
