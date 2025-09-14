@@ -64,6 +64,4 @@ class StreamPulseCommand extends Command
         $this->info("[StreamPulse] Consumer stopped for topic: {$topic}, group: {$group}");
         return self::SUCCESS;
     }
-
-    // ...existing code...
 }
