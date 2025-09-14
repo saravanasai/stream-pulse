@@ -35,8 +35,9 @@ class StreamPulseCommand extends Command
 
         // Get the registered handler for the topic
         $handler = StreamPulse::getHandler($topic);
-        if (!$handler) {
+        if (! $handler) {
             $this->error("[StreamPulse] No handler registered for topic: {$topic}");
+
             return self::FAILURE;
         }
 
@@ -78,12 +79,12 @@ class StreamPulseCommand extends Command
     /**
      * Process a batch of messages from the topic.
      *
-     * @param string $topic The topic to consume from
-     * @param string $group The consumer group
-     * @param callable $handler The message handler
-     * @param int $batchSize Maximum number of messages to process in this batch
-     * @param int|null $maxMessages Maximum total messages to process (if set)
-     * @param int &$processedMessages Running total of processed messages
+     * @param  string  $topic  The topic to consume from
+     * @param  string  $group  The consumer group
+     * @param  callable  $handler  The message handler
+     * @param  int  $batchSize  Maximum number of messages to process in this batch
+     * @param  int|null  $maxMessages  Maximum total messages to process (if set)
+     * @param  int  &$processedMessages  Running total of processed messages
      * @return int Number of messages processed in this batch
      */
     protected function processBatch(
@@ -135,7 +136,7 @@ class StreamPulseCommand extends Command
                             'trace' => $e->getTraceAsString(),
                         ]);
 
-                        $this->error("[StreamPulse] Failed to process message {$messageId} for topic {$topic}: " . $e->getMessage());
+                        $this->error("[StreamPulse] Failed to process message {$messageId} for topic {$topic}: ".$e->getMessage());
                     }
                 });
 
@@ -145,7 +146,7 @@ class StreamPulseCommand extends Command
                 }
             }
         } catch (\Exception $e) {
-            $this->error("[StreamPulse] Error in consumer loop: " . $e->getMessage());
+            $this->error('[StreamPulse] Error in consumer loop: '.$e->getMessage());
             Log::error('[StreamPulse] Consumer error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
