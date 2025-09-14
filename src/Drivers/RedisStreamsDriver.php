@@ -19,13 +19,9 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     {
         $connectionName = config('stream-pulse.drivers.redis.connection', 'default');
         $this->redis = Redis::connection($connectionName)->client();
-        // Get Laravel's Redis prefix
         $redisPrefix = config('database.redis.options.prefix');
-
-        // Get our specific stream prefix
         $streamPrefix = config('stream-pulse.drivers.redis.stream_prefix', 'stream-pulse:');
 
-        // Store both prefixes
         $this->prefix = $streamPrefix;
         $this->fullPrefix = (string) $redisPrefix . $streamPrefix;
     }
@@ -43,6 +39,10 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         );
     }
 
+    /**
+     * Apply retention policy to a stream
+     * Only called when rate limiting allows
+     */
     protected function applyRetention(string $topic): void
     {
         $streamName = $this->getStreamName($topic);
@@ -83,9 +83,18 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         }
 
         $this->redis->xAdd($streamName, '*', $formattedPayload);
-        $this->applyRetention($topic);
+
+        // Check if we should apply retention (rate limited to once every 5 minutes per topic)
+        $rateLimitKey = "streampulse:retention_ratelimit:{$topic}";
+        if ($this->redis->set($rateLimitKey, 1, ['NX', 'EX' => 300])) {
+            $this->applyRetention($topic);
+        }
     }
 
+    /**
+     * Check for messages that have been pending too long and may need to be moved to DLQ
+     * Only called when rate limiting allows
+     */
     protected function checkPendingMessages(string $topic, string $streamName, string $group): void
     {
         $maxRetries = $this->getMaxRetries($topic);
@@ -97,24 +106,22 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         );
 
         if (! empty($pendingMessages) && isset($pendingMessages['pending']) && $pendingMessages['pending'] > 0) {
-            // Get pending messages with their idle time
-            $pendingDetails = $this->redis->xPendingRange($streamName, $group, '-', '+', 10);
+            // Get pending messages with their idle time - limit to 20 at a time for efficiency
+            $pendingDetails = $this->redis->xPendingRange($streamName, $group, '-', '+', 20);
 
             foreach ($pendingDetails as $pending) {
                 $messageId = $pending[0];
-                $consumerName = $pending[1];
                 $idleTimeMs = $pending[2];  // Idle time in milliseconds
                 $deliveryCount = $pending[3];
 
                 // Only consider messages that have been idle for longer than the minimum time
+                // AND have exceeded the maximum retry count
                 if ($idleTimeMs >= $minIdleTime && $deliveryCount >= $maxRetries) {
                     $this->fail($topic, $messageId, $group);
-                    Log::warning("Message {$messageId} in topic {$topic} exceeded max retries ({$maxRetries}) and was moved to DLQ");
                 }
             }
         }
     }
-
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
@@ -126,7 +133,11 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             // Group already exists, continue
         }
 
-        $this->checkPendingMessages($topic, $streamName, $group);
+        // Check pending messages with rate limiting (once per minute per topic/group)
+        $rateLimitKey = "streampulse:pending_check_ratelimit:{$topic}:{$group}";
+        if ($this->redis->set($rateLimitKey, 1, ['NX', 'EX' => 60])) {
+            $this->checkPendingMessages($topic, $streamName, $group);
+        }
 
         $newMessages = $this->redis->xReadGroup(
             $group,
@@ -205,10 +216,11 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $dlqs = [];
 
         // Add the default DLQ
-        $dlqs[] = config('stream-pulse.defaults.dlq', 'dead_letter');
+        $dlqs[] = config('stream-pulse.defaults.dlq');
 
         // Add topic-specific DLQs
-        foreach (config('stream-pulse.topics', []) as $topic => $config) {
+        $topicConfigs = config('stream-pulse.topics', []);
+        foreach ($topicConfigs as $config) {
             if (isset($config['dlq'])) {
                 $dlqs[] = $config['dlq'];
             }
