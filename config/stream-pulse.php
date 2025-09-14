@@ -37,6 +37,7 @@ return [
         'max_retries' => 3,
         'dlq' => 'dead_letter',
         'retention' => 1000, // Redis only: default max length
+        'min_idle_time' => 30000,
     ],
 
     /*
@@ -53,10 +54,12 @@ return [
             'max_retries' => 5,
             'dlq' => 'orders_dlq',
             'retention' => 5000,
+            'min_idle_time' => 60000,
         ],
         'notifications' => [
             'max_retries' => 2,
             'retention' => 2000,
+            'min_idle_time' => 30000,
         ],
     ],
 

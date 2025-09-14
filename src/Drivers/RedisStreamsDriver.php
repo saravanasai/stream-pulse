@@ -27,12 +27,12 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
         // Store both prefixes
         $this->prefix = $streamPrefix;
-        $this->fullPrefix = (string) $redisPrefix.$streamPrefix;
+        $this->fullPrefix = (string) $redisPrefix . $streamPrefix;
     }
 
     protected function getStreamName(string $topic): string
     {
-        return $this->prefix.$topic;
+        return $this->prefix . $topic;
     }
 
     protected function getRetention(string $topic): int
@@ -91,14 +91,23 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $maxRetries = $this->getMaxRetries($topic);
         $pendingMessages = $this->redis->xPending($streamName, $group);
 
+        $minIdleTime = config(
+            "stream-pulse.topics.{$topic}.min_idle_time",
+            config('stream-pulse.defaults.min_idle_time', 30000)  // Default 30 seconds
+        );
+
         if (! empty($pendingMessages) && isset($pendingMessages['pending']) && $pendingMessages['pending'] > 0) {
+            // Get pending messages with their idle time
             $pendingDetails = $this->redis->xPendingRange($streamName, $group, '-', '+', 10);
 
             foreach ($pendingDetails as $pending) {
                 $messageId = $pending[0];
+                $consumerName = $pending[1];
+                $idleTimeMs = $pending[2];  // Idle time in milliseconds
                 $deliveryCount = $pending[3];
 
-                if ($deliveryCount >= $maxRetries) {
+                // Only consider messages that have been idle for longer than the minimum time
+                if ($idleTimeMs >= $minIdleTime && $deliveryCount >= $maxRetries) {
                     $this->fail($topic, $messageId, $group);
                     Log::warning("Message {$messageId} in topic {$topic} exceeded max retries ({$maxRetries}) and was moved to DLQ");
                 }
@@ -109,7 +118,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname().':'.getmypid();
+        $consumerName = gethostname() . ':' . getmypid();
 
         try {
             $this->redis->xGroup('CREATE', $streamName, $group, '0', true);
@@ -134,7 +143,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                         $callback($payload, $messageId);
                         $this->ack($topic, $messageId, $group);
                     } catch (\Exception $e) {
-                        Log::error("Error processing message {$messageId} from {$topic}: ".$e->getMessage());
+                        Log::error("Error processing message {$messageId} from {$topic}: " . $e->getMessage());
                     }
                 }
             }
@@ -172,7 +181,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function listTopics(): array
     {
         // We need to use the full prefix (Laravel + stream) when searching for keys
-        $pattern = $this->fullPrefix.'*';
+        $pattern = $this->fullPrefix . '*';
         $keys = $this->redis->keys($pattern);
         $topics = [];
 
