@@ -122,6 +122,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             }
         }
     }
+
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
