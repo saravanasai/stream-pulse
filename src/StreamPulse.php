@@ -2,7 +2,6 @@
 
 namespace StreamPulse\StreamPulse;
 
-
 use InvalidArgumentException;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
@@ -10,6 +9,7 @@ use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 class StreamPulse
 {
     protected static array $handlers = [];
+
     protected static ?EventStoreDriver $driverInstance = null;
 
     private const DRIVER_REDIS = 'redis';
@@ -35,7 +35,7 @@ class StreamPulse
 
         switch ($driver) {
             case self::DRIVER_REDIS:
-                self::$driverInstance = new RedisStreamsDriver();
+                self::$driverInstance = new RedisStreamsDriver;
                 break;
             default:
                 throw new InvalidArgumentException("Driver [$driver] is not supported.");
@@ -51,6 +51,7 @@ class StreamPulse
     {
         $defaults = config('stream-pulse.defaults', []);
         $topicConfig = config("stream-pulse.topics.$topic", []);
+
         return array_merge($defaults, $topicConfig);
     }
 
@@ -99,7 +100,7 @@ class StreamPulse
         $driver = self::getDriver();
         $handler = $callback ?? (self::$handlers[$topic] ?? null);
 
-        $driver->consume($topic,  $handler, $group);
+        $driver->consume($topic, $handler, $group);
     }
 
     /**
@@ -110,7 +111,7 @@ class StreamPulse
         $strict = config('stream-pulse.strict_mode', false);
         $topics = array_keys(config('stream-pulse.topics', []));
 
-        if ($strict && !in_array($topic, $topics)) {
+        if ($strict && ! in_array($topic, $topics)) {
             throw new InvalidArgumentException(
                 "Topic [$topic] is not defined in configuration. Enable it in config/stream-pulse.php before publishing."
             );
