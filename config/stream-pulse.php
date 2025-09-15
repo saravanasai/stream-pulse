@@ -76,12 +76,7 @@ return [
         'redis' => [
             'connection' => env('REDIS_CONNECTION', 'default'),
             'stream_prefix' => 'streampulse:',
-        ],
-
-        'nats' => [
-            'servers' => env('NATS_SERVERS', 'nats://127.0.0.1:4222'),
-            // Future: retention, streams, consumer groups
-        ],
+        ]
     ],
 
     /*

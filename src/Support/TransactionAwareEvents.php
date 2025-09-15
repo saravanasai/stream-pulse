@@ -36,22 +36,22 @@ class TransactionAwareEvents
     /**
      * Store an event to be published after the database transaction commits.
      */
-    public function store(string $topic, array $payload): void
+    public function store(string $topic, array $payload, array $config): void
     {
         $connection = $this->resolveConnection();
 
         if ($this->isTransactionActive($connection)) {
-            $this->storeEvent($connection, $topic, $payload);
+            $this->storeEvent($connection, $topic, $payload, $config);
         } else {
             // If no transaction is active, publish immediately
-            $this->driver->publish($topic, $payload);
+            $this->driver->publish($topic, $payload, $config);
         }
     }
 
     /**
      * Store an event for the given connection to be published after commit.
      */
-    protected function storeEvent(ConnectionInterface $connection, string $topic, array $payload): void
+    protected function storeEvent(ConnectionInterface $connection, string $topic, array $payload, array $config): void
     {
         $connectionName = $this->getConnectionName($connection);
 
@@ -73,6 +73,7 @@ class TransactionAwareEvents
         $this->pendingEvents[$connectionName][] = [
             'topic' => $topic,
             'payload' => $payload,
+            'config' => $config,
         ];
     }
 
@@ -86,7 +87,7 @@ class TransactionAwareEvents
         }
 
         foreach ($this->pendingEvents[$connectionName] as $event) {
-            $this->driver->publish($event['topic'], $event['payload']);
+            $this->driver->publish($event['topic'], $event['payload'], $event['config']);
         }
 
         $this->discardPendingEvents($connectionName);

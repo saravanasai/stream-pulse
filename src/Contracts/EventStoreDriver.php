@@ -7,7 +7,7 @@ interface EventStoreDriver
     /**
      * Publish an event to a topic.
      */
-    public function publish(string $topic, array $payload): void;
+    public function publish(string $topic, array $payload, array $config): void;
 
     /**
      * Consume events from a topic.

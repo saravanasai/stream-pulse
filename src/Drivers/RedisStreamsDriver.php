@@ -23,12 +23,12 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $streamPrefix = config('stream-pulse.drivers.redis.stream_prefix', 'stream-pulse:');
 
         $this->prefix = $streamPrefix;
-        $this->fullPrefix = (string) $redisPrefix.$streamPrefix;
+        $this->fullPrefix = (string) $redisPrefix . $streamPrefix;
     }
 
     protected function getStreamName(string $topic): string
     {
-        return $this->prefix.$topic;
+        return $this->prefix . $topic;
     }
 
     protected function getRetention(string $topic): int
@@ -71,7 +71,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         return $dlq;
     }
 
-    public function publish(string $topic, array $payload): void
+    public function publish(string $topic, array $payload, array $config): void
     {
         $streamName = $this->getStreamName($topic);
 
@@ -126,7 +126,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname().':'.getmypid();
+        $consumerName = gethostname() . ':' . getmypid();
 
         try {
             $this->redis->xGroup('CREATE', $streamName, $group, '0', true);
@@ -155,7 +155,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                         $callback($payload, $messageId);
                         $this->ack($topic, $messageId, $group);
                     } catch (\Exception $e) {
-                        Log::error("Error processing message {$messageId} from {$topic}: ".$e->getMessage());
+                        Log::error("Error processing message {$messageId} from {$topic}: " . $e->getMessage());
                     }
                 }
             }
@@ -193,7 +193,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function listTopics(): array
     {
         // We need to use the full prefix (Laravel + stream) when searching for keys
-        $pattern = $this->fullPrefix.'*';
+        $pattern = $this->fullPrefix . '*';
         $keys = $this->redis->keys($pattern);
         $topics = [];
 
