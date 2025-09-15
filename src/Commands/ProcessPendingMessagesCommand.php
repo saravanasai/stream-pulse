@@ -4,8 +4,8 @@ namespace StreamPulse\StreamPulse\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
+use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 use StreamPulse\StreamPulse\StreamPulse;
 
 /**
@@ -57,8 +57,9 @@ class ProcessPendingMessagesCommand extends Command
             // We need a driver that implements both interfaces
             $driver = StreamPulse::getDriver();
 
-            if (!$driver instanceof StreamUIInterface) {
+            if (! $driver instanceof StreamUIInterface) {
                 $this->error('Driver does not implement StreamUIInterface');
+
                 return self::FAILURE;
             }
 
@@ -70,13 +71,13 @@ class ProcessPendingMessagesCommand extends Command
 
             $success = $this->processAllTopics($driver, $topics);
 
-            if (!$success) {
+            if (! $success) {
                 $exitCode = self::FAILURE;
             }
-            $this->info("All pending messages processed successfully.");
+            $this->info('All pending messages processed successfully.');
         } catch (\Exception $e) {
-            $this->error("Error processing pending messages: " . $e->getMessage());
-            Log::error("Error in ProcessPendingMessagesCommand", [
+            $this->error('Error processing pending messages: '.$e->getMessage());
+            Log::error('Error in ProcessPendingMessagesCommand', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -89,8 +90,8 @@ class ProcessPendingMessagesCommand extends Command
     /**
      * Process pending messages for all topics.
      *
-     * @param RedisStreamsDriver $driver The event store driver
-     * @param array $topics List of topics to process
+     * @param  RedisStreamsDriver  $driver  The event store driver
+     * @param  array  $topics  List of topics to process
      * @return int Number of messages processed or -1 on failure
      */
     protected function processAllTopics(RedisStreamsDriver $driver, array $topics): bool
@@ -117,8 +118,8 @@ class ProcessPendingMessagesCommand extends Command
                     }
                 }
             } catch (\Exception $e) {
-                $this->error("Error processing topic {$topic}: " . $e->getMessage());
-                Log::error("Error processing topic", [
+                $this->error("Error processing topic {$topic}: ".$e->getMessage());
+                Log::error('Error processing topic', [
                     'topic' => $topic,
                     'error' => $e->getMessage(),
                 ]);
