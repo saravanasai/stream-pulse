@@ -26,6 +26,18 @@ return [
     'strict_mode' => env('STREAMPULSE_STRICT_MODE', true),
 
     /*
+    |--------------------------------------------------------------------------
+    | Auto Processing
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, StreamPulse will automatically schedule a task to process
+    | pending messages that have exceeded retry limits and move them to
+    | their Dead Letter Queues. This runs every 2 minutes by default.
+    |
+    */
+    'auto_process_pending' => env('STREAMPULSE_AUTO_PROCESS', true),
+
+    /*
     |-----------------------------------------------------------------
     | Global Defaults
     |--------------------------------------------------------------------------

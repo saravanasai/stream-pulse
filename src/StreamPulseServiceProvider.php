@@ -2,8 +2,10 @@
 
 namespace StreamPulse\StreamPulse;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
+use StreamPulse\StreamPulse\Commands\ProcessPendingMessagesCommand;
 use StreamPulse\StreamPulse\Commands\StreamPulseCommand;
 use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
@@ -23,7 +25,10 @@ class StreamPulseServiceProvider extends PackageServiceProvider
             ->hasConfigFile('stream-pulse')
             ->hasViews()
             ->hasMigration('create_stream_pulse_table')
-            ->hasCommand(StreamPulseCommand::class);
+            ->hasCommands([
+                StreamPulseCommand::class,
+                ProcessPendingMessagesCommand::class,
+            ]);
     }
 
     /**
@@ -58,5 +63,39 @@ class StreamPulseServiceProvider extends PackageServiceProvider
 
         // Register the UI Service Provider
         $this->app->register(Providers\StreamPulseUIServiceProvider::class);
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        parent::boot();
+
+        // Set up the scheduler for processing pending messages
+        $this->configureScheduler();
+    }
+
+    /**
+     * Configure the scheduler to run the pending messages processor.
+     */
+    protected function configureScheduler(): void
+    {
+        // Only set up the scheduler when the schedule command is running
+        // and auto-processing is enabled in config
+        $autoProcess = config('stream-pulse.auto_process_pending');
+
+        if ($autoProcess && $this->app->runningInConsole()) {
+            $this->app->booted(function () {
+                $schedule = $this->app->make(Schedule::class);
+
+                // Process pending messages every 2 minutes
+                $schedule->command('streampulse:process-pending')
+                    ->everyTwoMinutes()
+                    ->withoutOverlapping()
+                    ->onOneServer()
+                    ->runInBackground();
+            });
+        }
     }
 }

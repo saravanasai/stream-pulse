@@ -26,12 +26,38 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $this->fullPrefix = (string) $redisPrefix . $streamPrefix;
     }
 
-    protected function getStreamName(string $topic): string
+    /**
+     * Get the Redis stream name for a topic.
+     *
+     * @param string $topic The topic name
+     * @return string The formatted stream name
+     */
+    public function getStreamName(string $topic): string
     {
         return $this->prefix . $topic;
     }
 
-    protected function getRetention(string $topic): int
+    /**
+     * Get the maximum number of retries for a topic.
+     *
+     * @param string $topic The topic name
+     * @return int The maximum number of retries
+     */
+    public function getMaxRetries(string $topic): int
+    {
+        return config(
+            "stream-pulse.topics.{$topic}.max_retries",
+            config('stream-pulse.defaults.max_retries', 3)
+        );
+    }
+
+    /**
+     * Get the retention setting for a topic.
+     *
+     * @param string $topic The topic name
+     * @return int The retention setting
+     */
+    public function getRetention(string $topic): int
     {
         return config(
             "stream-pulse.topics.{$topic}.retention",
@@ -53,15 +79,13 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         }
     }
 
-    protected function getMaxRetries(string $topic): int
-    {
-        return config(
-            "stream-pulse.topics.{$topic}.max_retries",
-            config('stream-pulse.defaults.max_retries', 3)
-        );
-    }
-
-    protected function getDLQ(string $topic): string
+    /**
+     * Get the Dead Letter Queue (DLQ) for a topic.
+     *
+     * @param string $topic The topic name
+     * @return string The DLQ name
+     */
+    public function getDLQ(string $topic): string
     {
         $dlq = config("stream-pulse.topics.{$topic}.dlq");
         if (is_null($dlq)) {
@@ -83,19 +107,13 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         }
 
         $this->redis->xAdd($streamName, '*', $formattedPayload);
-
-        // Check if we should apply retention (rate limited to once every 5 minutes per topic)
-        $rateLimitKey = "streampulse:retention_ratelimit:{$topic}";
-        if ($this->redis->set($rateLimitKey, 1, ['NX', 'EX' => 300])) {
-            $this->applyRetention($topic);
-        }
     }
 
     /**
      * Check for messages that have been pending too long and may need to be moved to DLQ
      * Only called when rate limiting allows
      */
-    protected function checkPendingMessages(string $topic, string $streamName, string $group): void
+    public function checkPendingMessages(string $topic, string $streamName, string $group): void
     {
         $maxRetries = $this->getMaxRetries($topic);
         $pendingMessages = $this->redis->xPending($streamName, $group);
@@ -134,17 +152,11 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             // Group already exists, continue
         }
 
-        // Check pending messages with rate limiting (once per minute per topic/group)
-        $rateLimitKey = "streampulse:pending_check_ratelimit:{$topic}:{$group}";
-        if ($this->redis->set($rateLimitKey, 1, ['NX', 'EX' => 60])) {
-            $this->checkPendingMessages($topic, $streamName, $group);
-        }
-
         $newMessages = $this->redis->xReadGroup(
             $group,
             $consumerName,
             [$streamName => '>'],
-            10,
+            100,
             1000
         );
 
@@ -331,5 +343,10 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $parts = explode('-', $id);
 
         return (int) $parts[0];
+    }
+
+    public function getGroupInfo(string $streamName): array
+    {
+        return $this->redis->xInfo('GROUPS', $streamName);
     }
 }
