@@ -238,6 +238,11 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      * This method reads messages from a Redis stream, hydrates the payload,
      * and passes it to the provided callback function.
      *
+     * For topics with 'preserve_order' set to true, this method guarantees
+     * messages will be processed in strict chronological order by:
+     * 1. Using a consistent consumer name for all instances
+     * 2. Processing one message at a time
+     *
      * @param  string  $topic  The topic name to consume from
      * @param  callable  $callback  The callback function to process the message
      * @param  string  $group  The consumer group name
@@ -246,13 +251,23 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname() . ':' . getmypid();
+        $requireOrdering = config(
+            "stream-pulse.topics.{$topic}.preserve_order",
+            config('stream-pulse.defaults.preserve_order', false)
+        );
+
+        // For ordered topics, use a static consumer name to ensure all messages
+        // for this topic/group combination go to the same consumer
+        $consumerName = $requireOrdering
+            ? "ordered-consumer-{$topic}-{$group}"
+            : gethostname() . ':' . getmypid();
 
         // Dispatch event before consuming
         Event::dispatch('stream-pulse.consuming', [
             'topic' => $topic,
             'group' => $group,
-            'consumer' => $consumerName
+            'consumer' => $consumerName,
+            'ordered' => $requireOrdering
         ]);
 
         $startTime = microtime(true);
@@ -265,16 +280,24 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             // Group already exists, continue
         }
 
+        // When ordering is required, process one message at a time
+        $batchSize = $requireOrdering ? 1 : 100;
+
         $newMessages = $this->redis->xReadGroup(
             $group,
             $consumerName,
             [$streamName => '>'],
-            100,
+            $batchSize,
             1000
         );
 
         if ($newMessages) {
             foreach ($newMessages as $messages) {
+                // Sort messages by ID when ordering is required
+                if ($requireOrdering) {
+                    ksort($messages);
+                }
+
                 foreach ($messages as $messageId => $payload) {
                     $processingStartTime = microtime(true);
                     try {
@@ -285,7 +308,8 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                         Event::dispatch('stream-pulse.message-processing', [
                             'topic' => $topic,
                             'message_id' => $messageId,
-                            'group' => $group
+                            'group' => $group,
+                            'ordered' => $requireOrdering
                         ]);
 
                         $callback($hydratedPayload, $messageId);
@@ -297,7 +321,8 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                             'topic' => $topic,
                             'message_id' => $messageId,
                             'duration' => microtime(true) - $processingStartTime,
-                            'success' => true
+                            'success' => true,
+                            'ordered' => $requireOrdering
                         ]);
                     } catch (\Exception $e) {
                         $errorCount++;
@@ -308,9 +333,21 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                             'topic' => $topic,
                             'message_id' => $messageId,
                             'error' => $e->getMessage(),
-                            'duration' => microtime(true) - $processingStartTime
+                            'duration' => microtime(true) - $processingStartTime,
+                            'ordered' => $requireOrdering
                         ]);
+
+                        // When ordering is required, stop processing on first error
+                        // to prevent out-of-order processing
+                        if ($requireOrdering) {
+                            break;
+                        }
                     }
+                }
+
+                // If ordering required and we had an error, stop processing this batch
+                if ($requireOrdering && $errorCount > 0) {
+                    break;
                 }
             }
         }
@@ -323,7 +360,9 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             'group' => $group,
             'duration' => $duration,
             'message_count' => $messageCount,
-            'error_count' => $errorCount
+            'error_count' => $errorCount,
+            'ordered' => $requireOrdering,
+            'success' => $errorCount === 0
         ]);
     }
 

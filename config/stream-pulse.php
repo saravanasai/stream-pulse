@@ -50,6 +50,7 @@ return [
         'dlq' => 'dead_letter',
         'retention' => 1000, // Redis only: default max length
         'min_idle_time' => 30000,
+        'preserve_order' => false, // Whether to process messages in strict chronological order
     ],
 
     /*
@@ -67,11 +68,13 @@ return [
             'dlq' => 'orders_dlq',
             'retention' => 5000,
             'min_idle_time' => 60000,
+            'preserve_order' => true, // Process orders in strict sequence
         ],
         'notifications' => [
             'max_retries' => 2,
             'retention' => 2000,
             'min_idle_time' => 30000,
+            'preserve_order' => false, // Notifications can be processed in parallel
         ],
     ],
 
