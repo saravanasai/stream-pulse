@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use Illuminate\Support\Facades\Redis;
 use Mockery;
 
-
 // This trait will provide the necessary mocking setup for our tests
 trait RedisMockable
 {

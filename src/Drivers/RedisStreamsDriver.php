@@ -2,9 +2,9 @@
 
 namespace StreamPulse\StreamPulse\Drivers;
 
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\Event;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 
@@ -31,15 +31,11 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
     /**
      * Stream prefix without Redis database prefix.
-     *
-     * @var string
      */
     protected string $prefix;
 
     /**
      * Full stream prefix including Redis database prefix.
-     *
-     * @var string
      */
     protected string $fullPrefix;
 
@@ -48,9 +44,13 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      * These constants help identify the original data type when hydrating the payload.
      */
     private const PREFIX_JSON = '__json:';
+
     private const PREFIX_BOOL = '__bool:';
+
     private const PREFIX_NULL = '__null';
+
     private const PREFIX_INT = '__int:';
+
     private const PREFIX_FLOAT = '__float:';
 
     public function __construct()
@@ -61,7 +61,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $streamPrefix = config('stream-pulse.drivers.redis.stream_prefix', 'stream-pulse:');
 
         $this->prefix = $streamPrefix;
-        $this->fullPrefix = (string) $redisPrefix . $streamPrefix;
+        $this->fullPrefix = (string) $redisPrefix.$streamPrefix;
     }
 
     /**
@@ -72,7 +72,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     public function getStreamName(string $topic): string
     {
-        return $this->prefix . $topic;
+        return $this->prefix.$topic;
     }
 
     /**
@@ -116,7 +116,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         // Dispatch event before applying retention
         Event::dispatch('stream-pulse.retention-applying', [
             'topic' => $topic,
-            'retention' => $retention
+            'retention' => $retention,
         ]);
 
         if ($retention > 0) {
@@ -127,7 +127,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                 'topic' => $topic,
                 'retention' => $retention,
                 'trimmed_count' => $trimmed,
-                'duration' => microtime(true) - $startTime
+                'duration' => microtime(true) - $startTime,
             ]);
         }
     }
@@ -158,7 +158,6 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      * @param  string  $topic  The topic name
      * @param  array  $payload  The event payload
      * @param  array  $config  Additional configuration options
-     * @return void
      */
     public function publish(string $topic, array $payload, array $config): void
     {
@@ -173,15 +172,15 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         foreach ($payload as $key => $value) {
             if (is_array($value) || is_object($value)) {
                 // Convert all complex types to JSON for cross-language compatibility
-                $formattedPayload[$key] = self::PREFIX_JSON . json_encode($value);
+                $formattedPayload[$key] = self::PREFIX_JSON.json_encode($value);
             } elseif (is_bool($value)) {
-                $formattedPayload[$key] = self::PREFIX_BOOL . ($value ? 'true' : 'false');
+                $formattedPayload[$key] = self::PREFIX_BOOL.($value ? 'true' : 'false');
             } elseif (is_null($value)) {
                 $formattedPayload[$key] = self::PREFIX_NULL;
             } elseif (is_int($value)) {
-                $formattedPayload[$key] = self::PREFIX_INT . (string) $value;
+                $formattedPayload[$key] = self::PREFIX_INT.(string) $value;
             } elseif (is_float($value)) {
-                $formattedPayload[$key] = self::PREFIX_FLOAT . (string) $value;
+                $formattedPayload[$key] = self::PREFIX_FLOAT.(string) $value;
             } else {
                 $formattedPayload[$key] = (string) $value;
             }
@@ -196,7 +195,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             'topic' => $topic,
             'message_id' => $messageId,
             'duration' => $duration,
-            'size' => strlen(json_encode($formattedPayload))
+            'size' => strlen(json_encode($formattedPayload)),
         ]);
     }
 
@@ -246,7 +245,6 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      * @param  string  $topic  The topic name to consume from
      * @param  callable  $callback  The callback function to process the message
      * @param  string  $group  The consumer group name
-     * @return void
      */
     public function consume(string $topic, callable $callback, string $group): void
     {
@@ -260,14 +258,14 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         // for this topic/group combination go to the same consumer
         $consumerName = $requireOrdering
             ? "ordered-consumer-{$topic}-{$group}"
-            : gethostname() . ':' . getmypid();
+            : gethostname().':'.getmypid();
 
         // Dispatch event before consuming
         Event::dispatch('stream-pulse.consuming', [
             'topic' => $topic,
             'group' => $group,
             'consumer' => $consumerName,
-            'ordered' => $requireOrdering
+            'ordered' => $requireOrdering,
         ]);
 
         $startTime = microtime(true);
@@ -309,7 +307,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                             'topic' => $topic,
                             'message_id' => $messageId,
                             'group' => $group,
-                            'ordered' => $requireOrdering
+                            'ordered' => $requireOrdering,
                         ]);
 
                         $callback($hydratedPayload, $messageId);
@@ -322,11 +320,11 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                             'message_id' => $messageId,
                             'duration' => microtime(true) - $processingStartTime,
                             'success' => true,
-                            'ordered' => $requireOrdering
+                            'ordered' => $requireOrdering,
                         ]);
                     } catch (\Exception $e) {
                         $errorCount++;
-                        Log::error("Error processing message {$messageId} from {$topic}: " . $e->getMessage());
+                        Log::error("Error processing message {$messageId} from {$topic}: ".$e->getMessage());
 
                         // Dispatch event for failed message
                         Event::dispatch('stream-pulse.message-failed', [
@@ -334,7 +332,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                             'message_id' => $messageId,
                             'error' => $e->getMessage(),
                             'duration' => microtime(true) - $processingStartTime,
-                            'ordered' => $requireOrdering
+                            'ordered' => $requireOrdering,
                         ]);
 
                         // When ordering is required, stop processing on first error
@@ -362,7 +360,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             'message_count' => $messageCount,
             'error_count' => $errorCount,
             'ordered' => $requireOrdering,
-            'success' => $errorCount === 0
+            'success' => $errorCount === 0,
         ]);
     }
 
@@ -374,7 +372,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      * It's designed to work with data produced by non-PHP producers as well.
      *
      * @param  array  $payload  The raw message payload from Redis
-     * @return array  The hydrated payload with proper PHP data types
+     * @return array The hydrated payload with proper PHP data types
      */
     protected function hydrate(array $payload): array
     {
@@ -382,8 +380,9 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
         foreach ($payload as $key => $value) {
             // Skip non-string values (should not happen in Redis streams, but just in case)
-            if (!is_string($value)) {
+            if (! is_string($value)) {
                 $hydratedPayload[$key] = $value;
+
                 continue;
             }
 
@@ -415,7 +414,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         Event::dispatch('stream-pulse.acknowledging', [
             'topic' => $topic,
             'message_id' => $messageId,
-            'group' => $group
+            'group' => $group,
         ]);
 
         $streamName = $this->getStreamName($topic);
@@ -426,7 +425,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             'topic' => $topic,
             'message_id' => $messageId,
             'group' => $group,
-            'duration' => microtime(true) - $startTime
+            'duration' => microtime(true) - $startTime,
         ]);
     }
 
@@ -438,7 +437,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         Event::dispatch('stream-pulse.failing', [
             'topic' => $topic,
             'message_id' => $messageId,
-            'group' => $group
+            'group' => $group,
         ]);
 
         $dlqName = $this->getDLQ($topic);
@@ -460,7 +459,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                     'message_id' => $messageId,
                     'dlq' => $dlqName,
                     'duration' => microtime(true) - $startTime,
-                    'success' => true
+                    'success' => true,
                 ]);
             } else {
                 // Dispatch event for message not found
@@ -470,7 +469,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                     'dlq' => $dlqName,
                     'duration' => microtime(true) - $startTime,
                     'success' => false,
-                    'reason' => 'Message not found in stream'
+                    'reason' => 'Message not found in stream',
                 ]);
             }
         } else {
@@ -481,7 +480,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                 'dlq' => $dlqName,
                 'duration' => microtime(true) - $startTime,
                 'success' => false,
-                'reason' => 'Message not pending'
+                'reason' => 'Message not pending',
             ]);
         }
     }
@@ -492,7 +491,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function listTopics(): array
     {
         // We need to use the full prefix (Laravel + stream) when searching for keys
-        $pattern = $this->fullPrefix . '*';
+        $pattern = $this->fullPrefix.'*';
         $keys = $this->redis->keys($pattern);
         $topics = [];
 

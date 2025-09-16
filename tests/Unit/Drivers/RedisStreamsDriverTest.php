@@ -1,24 +1,24 @@
 <?php
 
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\Config;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 
 // Define constants used in tests
 const STREAM_PREFIX = 'streampulse:';
 const TEST_TOPIC = 'test-topic';
-const TEST_STREAM = STREAM_PREFIX . TEST_TOPIC;
+const TEST_STREAM = STREAM_PREFIX.TEST_TOPIC;
 const TEST_GROUP = 'test-group';
 const TEST_MESSAGE_ID = '1234567890123-0';
 const TEST_DLQ = 'dlq-test-topic';
-const TEST_DLQ_STREAM = STREAM_PREFIX . TEST_DLQ;
+const TEST_DLQ_STREAM = STREAM_PREFIX.TEST_DLQ;
 
 // Extend the test subclass to add getConsumerName
 class TestableRedisStreamsDriver extends RedisStreamsDriver
 {
-
     public string $consumerName;
+
     public function testHydrate(array $payload): array
     {
         return $this->hydrate($payload);
@@ -29,7 +29,7 @@ class TestableRedisStreamsDriver extends RedisStreamsDriver
 test('getStreamName formats topic with prefix', function () {
     // Arrange
     Config::set('stream-pulse.drivers.redis.stream_prefix', 'test-prefix:');
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $result = $driver->getStreamName('test-topic');
@@ -42,7 +42,7 @@ test('getStreamName formats topic with prefix', function () {
 test('getMaxRetries returns default value when topic not configured', function () {
     // Arrange
     Config::set('stream-pulse.defaults.max_retries', 3);
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $result = $driver->getMaxRetries('unconfigured-topic');
@@ -56,7 +56,7 @@ test('getMaxRetries returns topic-specific value when configured', function () {
     // Arrange
     Config::set('stream-pulse.defaults.max_retries', 3);
     Config::set('stream-pulse.topics.custom-topic.max_retries', 5);
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $result = $driver->getMaxRetries('custom-topic');
@@ -75,7 +75,7 @@ test('publish serializes message and adds to Redis stream', function () {
         'boolean' => true,
         'array' => ['item1', 'item2'],
         'null' => null,
-        'float' => 123.45
+        'float' => 123.45,
     ];
     $config = [];
 
@@ -128,7 +128,7 @@ test('publish serializes message and adds to Redis stream', function () {
         )
         ->andReturn(TEST_MESSAGE_ID);
 
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $driver->publish($topic, $payload, $config);
@@ -147,7 +147,7 @@ test('publish serializes message and adds to Redis stream', function () {
 // Test the hydrate method deserializes payload correctly
 test('hydrate deserializes payload types correctly', function () {
     // Arrange
-    $driver = new TestableRedisStreamsDriver();
+    $driver = new TestableRedisStreamsDriver;
 
     $serializedPayload = [
         'string' => 'regular string',
@@ -157,7 +157,7 @@ test('hydrate deserializes payload types correctly', function () {
         'bool_false' => '__bool:false',
         'null_value' => '__null',
         'int_value' => '__int:42',
-        'float_value' => '__float:3.14'
+        'float_value' => '__float:3.14',
     ];
 
     // Act
@@ -212,7 +212,7 @@ test('ack acknowledges messages in Redis stream', function () {
         ->with(TEST_STREAM, TEST_GROUP, [TEST_MESSAGE_ID])
         ->andReturn(1);
 
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $driver->ack($topic, $messageId, $group);
@@ -238,7 +238,7 @@ test('fail moves messages to dead letter queue', function () {
 
     // Configure the driver
     Config::set('stream-pulse.drivers.redis.stream_prefix', STREAM_PREFIX);
-    Config::set('stream-pulse.topics.' . TEST_TOPIC . '.dlq', TEST_DLQ);
+    Config::set('stream-pulse.topics.'.TEST_TOPIC.'.dlq', TEST_DLQ);
 
     // Setup pending message
     $pendingMessage = [
@@ -246,8 +246,8 @@ test('fail moves messages to dead letter queue', function () {
             'message_id' => $messageId,
             'consumer' => $consumerName,
             'idle' => 5000,
-            'times_delivered' => 2
-        ]
+            'times_delivered' => 2,
+        ],
     ];
 
     // Mock Redis and Event
@@ -276,8 +276,8 @@ test('fail moves messages to dead letter queue', function () {
         ->andReturn([
             TEST_MESSAGE_ID => [
                 'value' => 'test-value',
-                'error' => 'test-error'
-            ]
+                'error' => 'test-error',
+            ],
         ]);
 
     // Mock xAdd to add to DLQ
@@ -296,7 +296,7 @@ test('fail moves messages to dead letter queue', function () {
         ->with(TEST_STREAM, TEST_GROUP, [TEST_MESSAGE_ID])
         ->andReturn(1);
 
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $driver->fail($topic, $messageId, $group);
