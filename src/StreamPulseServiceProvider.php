@@ -7,6 +7,7 @@ use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use StreamPulse\StreamPulse\Commands\ProcessPendingMessagesCommand;
 use StreamPulse\StreamPulse\Commands\StreamPulseCommand;
+use StreamPulse\StreamPulse\Commands\TrimStreamsCommand;
 use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 use StreamPulse\StreamPulse\Support\TransactionAwareEvents;
@@ -28,6 +29,7 @@ class StreamPulseServiceProvider extends PackageServiceProvider
             ->hasCommands([
                 StreamPulseCommand::class,
                 ProcessPendingMessagesCommand::class,
+                TrimStreamsCommand::class,
             ]);
     }
 
@@ -92,6 +94,13 @@ class StreamPulseServiceProvider extends PackageServiceProvider
                 // Process pending messages every 2 minutes
                 $schedule->command('streampulse:process-pending')
                     ->everyTwoMinutes()
+                    ->withoutOverlapping()
+                    ->onOneServer()
+                    ->runInBackground();
+
+                // Trim streams every five minutes
+                $schedule->command('streampulse:trim-streams')
+                    ->everyFiveMinutes()
                     ->withoutOverlapping()
                     ->onOneServer()
                     ->runInBackground();

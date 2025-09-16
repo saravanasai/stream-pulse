@@ -67,9 +67,9 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
     /**
      * Apply retention policy to a stream
-     * Only called when rate limiting allows
+     * Can be called directly or via scheduled command
      */
-    protected function applyRetention(string $topic): void
+    public function applyRetention(string $topic): void
     {
         $streamName = $this->getStreamName($topic);
         $retention = $this->getRetention($topic);
