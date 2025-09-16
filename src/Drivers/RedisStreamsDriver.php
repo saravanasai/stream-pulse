@@ -7,13 +7,50 @@ use Illuminate\Support\Facades\Redis;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 
+/**
+ * Redis Streams Driver for StreamPulse
+ *
+ * This driver implements the EventStoreDriver and StreamUIInterface contracts
+ * using Redis Streams as the underlying storage mechanism. It provides language-agnostic
+ * serialization and deserialization of payloads, making it suitable for cross-language
+ * event processing systems.
+ *
+ * Events are published with type metadata to preserve data types like arrays, booleans,
+ * integers, and floats. This allows for proper reconstruction of these types when consumed,
+ * regardless of the consumer's programming language.
+ */
 class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 {
+    /**
+     * Redis client instance.
+     *
+     * @var \Illuminate\Redis\Connections\Connection
+     */
     protected $redis;
 
+    /**
+     * Stream prefix without Redis database prefix.
+     *
+     * @var string
+     */
     protected string $prefix;
 
+    /**
+     * Full stream prefix including Redis database prefix.
+     *
+     * @var string
+     */
     protected string $fullPrefix;
+
+    /**
+     * Type prefixes used for payload serialization.
+     * These constants help identify the original data type when hydrating the payload.
+     */
+    private const PREFIX_JSON = '__json:';
+    private const PREFIX_BOOL = '__bool:';
+    private const PREFIX_NULL = '__null';
+    private const PREFIX_INT = '__int:';
+    private const PREFIX_FLOAT = '__float:';
 
     public function __construct()
     {
@@ -23,7 +60,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $streamPrefix = config('stream-pulse.drivers.redis.stream_prefix', 'stream-pulse:');
 
         $this->prefix = $streamPrefix;
-        $this->fullPrefix = (string) $redisPrefix.$streamPrefix;
+        $this->fullPrefix = (string) $redisPrefix . $streamPrefix;
     }
 
     /**
@@ -34,7 +71,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     public function getStreamName(string $topic): string
     {
-        return $this->prefix.$topic;
+        return $this->prefix . $topic;
     }
 
     /**
@@ -95,15 +132,38 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         return $dlq;
     }
 
+    /**
+     * Publish an event to a Redis stream.
+     *
+     * This method serializes the payload in a language-agnostic way to ensure
+     * compatibility with consumers written in different programming languages.
+     * Complex types (arrays, objects) are JSON encoded with a type metadata prefix.
+     *
+     * @param  string  $topic  The topic name
+     * @param  array  $payload  The event payload
+     * @param  array  $config  Additional configuration options
+     * @return void
+     */
     public function publish(string $topic, array $payload, array $config): void
     {
         $streamName = $this->getStreamName($topic);
 
         $formattedPayload = [];
         foreach ($payload as $key => $value) {
-            $formattedPayload[$key] = is_array($value) || is_object($value)
-                ? json_encode($value)
-                : (string) $value;
+            if (is_array($value) || is_object($value)) {
+                // Convert all complex types to JSON for cross-language compatibility
+                $formattedPayload[$key] = self::PREFIX_JSON . json_encode($value);
+            } elseif (is_bool($value)) {
+                $formattedPayload[$key] = self::PREFIX_BOOL . ($value ? 'true' : 'false');
+            } elseif (is_null($value)) {
+                $formattedPayload[$key] = self::PREFIX_NULL;
+            } elseif (is_int($value)) {
+                $formattedPayload[$key] = self::PREFIX_INT . (string) $value;
+            } elseif (is_float($value)) {
+                $formattedPayload[$key] = self::PREFIX_FLOAT . (string) $value;
+            } else {
+                $formattedPayload[$key] = (string) $value;
+            }
         }
 
         $this->redis->xAdd($streamName, '*', $formattedPayload);
@@ -141,10 +201,21 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         }
     }
 
+    /**
+     * Consume messages from a Redis stream.
+     *
+     * This method reads messages from a Redis stream, hydrates the payload,
+     * and passes it to the provided callback function.
+     *
+     * @param  string  $topic  The topic name to consume from
+     * @param  callable  $callback  The callback function to process the message
+     * @param  string  $group  The consumer group name
+     * @return void
+     */
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname().':'.getmypid();
+        $consumerName = gethostname() . ':' . getmypid();
 
         try {
             $this->redis->xGroup('CREATE', $streamName, $group, '0', true);
@@ -164,14 +235,57 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             foreach ($newMessages as $messages) {
                 foreach ($messages as $messageId => $payload) {
                     try {
-                        $callback($payload, $messageId);
+                        // Hydrate the payload before passing to callback
+                        $hydratedPayload = $this->hydrate($payload);
+                        $callback($hydratedPayload, $messageId);
                         $this->ack($topic, $messageId, $group);
                     } catch (\Exception $e) {
-                        Log::error("Error processing message {$messageId} from {$topic}: ".$e->getMessage());
+                        Log::error("Error processing message {$messageId} from {$topic}: " . $e->getMessage());
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Hydrate a message payload from its serialized form.
+     *
+     * This method converts the serialized Redis stream data back to its original
+     * PHP data types based on the type metadata prefix added during serialization.
+     * It's designed to work with data produced by non-PHP producers as well.
+     *
+     * @param  array  $payload  The raw message payload from Redis
+     * @return array  The hydrated payload with proper PHP data types
+     */
+    protected function hydrate(array $payload): array
+    {
+        $hydratedPayload = [];
+
+        foreach ($payload as $key => $value) {
+            // Skip non-string values (should not happen in Redis streams, but just in case)
+            if (!is_string($value)) {
+                $hydratedPayload[$key] = $value;
+                continue;
+            }
+
+            // Handle different data type prefixes
+            if (strpos($value, self::PREFIX_JSON) === 0) {
+                $jsonData = substr($value, strlen(self::PREFIX_JSON));
+                $hydratedPayload[$key] = json_decode($jsonData, true);
+            } elseif (strpos($value, self::PREFIX_BOOL) === 0) {
+                $hydratedPayload[$key] = substr($value, strlen(self::PREFIX_BOOL)) === 'true';
+            } elseif ($value === self::PREFIX_NULL) {
+                $hydratedPayload[$key] = null;
+            } elseif (strpos($value, self::PREFIX_INT) === 0) {
+                $hydratedPayload[$key] = (int) substr($value, strlen(self::PREFIX_INT));
+            } elseif (strpos($value, self::PREFIX_FLOAT) === 0) {
+                $hydratedPayload[$key] = (float) substr($value, strlen(self::PREFIX_FLOAT));
+            } else {
+                $hydratedPayload[$key] = $value;
+            }
+        }
+
+        return $hydratedPayload;
     }
 
     public function ack(string $topic, string $messageId, string $group): void
@@ -205,7 +319,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function listTopics(): array
     {
         // We need to use the full prefix (Laravel + stream) when searching for keys
-        $pattern = $this->fullPrefix.'*';
+        $pattern = $this->fullPrefix . '*';
         $keys = $this->redis->keys($pattern);
         $topics = [];
 
