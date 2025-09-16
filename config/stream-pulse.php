@@ -88,7 +88,7 @@ return [
         'redis' => [
             'connection' => env('REDIS_CONNECTION', 'default'),
             'stream_prefix' => 'streampulse:',
-        ]
+        ],
     ],
 
     /*

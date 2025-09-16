@@ -23,24 +23,24 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $streamPrefix = config('stream-pulse.drivers.redis.stream_prefix', 'stream-pulse:');
 
         $this->prefix = $streamPrefix;
-        $this->fullPrefix = (string) $redisPrefix . $streamPrefix;
+        $this->fullPrefix = (string) $redisPrefix.$streamPrefix;
     }
 
     /**
      * Get the Redis stream name for a topic.
      *
-     * @param string $topic The topic name
+     * @param  string  $topic  The topic name
      * @return string The formatted stream name
      */
     public function getStreamName(string $topic): string
     {
-        return $this->prefix . $topic;
+        return $this->prefix.$topic;
     }
 
     /**
      * Get the maximum number of retries for a topic.
      *
-     * @param string $topic The topic name
+     * @param  string  $topic  The topic name
      * @return int The maximum number of retries
      */
     public function getMaxRetries(string $topic): int
@@ -54,7 +54,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     /**
      * Get the retention setting for a topic.
      *
-     * @param string $topic The topic name
+     * @param  string  $topic  The topic name
      * @return int The retention setting
      */
     public function getRetention(string $topic): int
@@ -82,7 +82,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     /**
      * Get the Dead Letter Queue (DLQ) for a topic.
      *
-     * @param string $topic The topic name
+     * @param  string  $topic  The topic name
      * @return string The DLQ name
      */
     public function getDLQ(string $topic): string
@@ -144,7 +144,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function consume(string $topic, callable $callback, string $group): void
     {
         $streamName = $this->getStreamName($topic);
-        $consumerName = gethostname() . ':' . getmypid();
+        $consumerName = gethostname().':'.getmypid();
 
         try {
             $this->redis->xGroup('CREATE', $streamName, $group, '0', true);
@@ -167,7 +167,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
                         $callback($payload, $messageId);
                         $this->ack($topic, $messageId, $group);
                     } catch (\Exception $e) {
-                        Log::error("Error processing message {$messageId} from {$topic}: " . $e->getMessage());
+                        Log::error("Error processing message {$messageId} from {$topic}: ".$e->getMessage());
                     }
                 }
             }
@@ -205,7 +205,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     public function listTopics(): array
     {
         // We need to use the full prefix (Laravel + stream) when searching for keys
-        $pattern = $this->fullPrefix . '*';
+        $pattern = $this->fullPrefix.'*';
         $keys = $this->redis->keys($pattern);
         $topics = [];
 

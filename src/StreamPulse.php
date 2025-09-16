@@ -6,7 +6,6 @@ use InvalidArgumentException;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 
-
 /**
  * StreamPulse - Main facade for interacting with the event streaming system.
  *
@@ -16,7 +15,6 @@ use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
  */
 class StreamPulse
 {
-
     /**
      * Registry of topic handlers.
      *
@@ -45,6 +43,7 @@ class StreamPulse
     {
         return config('stream-pulse.driver', self::DRIVER_REDIS);
     }
+
     /**
      * Resolve and cache the driver instance as a singleton.
      *
@@ -52,6 +51,7 @@ class StreamPulse
      * improving resource utilization by reusing the same connection.
      *
      * @return EventStoreDriver The resolved driver instance
+     *
      * @throws InvalidArgumentException When an unsupported driver is configured
      */
     public static function getDriver(): EventStoreDriver
@@ -63,7 +63,7 @@ class StreamPulse
         $driver = self::getDriverName();
 
         self::$driverInstance = match ($driver) {
-            self::DRIVER_REDIS => new RedisStreamsDriver(),
+            self::DRIVER_REDIS => new RedisStreamsDriver,
             default => throw new InvalidArgumentException("Driver [$driver] is not supported."),
         };
 
@@ -76,7 +76,7 @@ class StreamPulse
      * Merges the default configuration with topic-specific configuration
      * to ensure all required settings are available.
      *
-     * @param string $topic The topic name
+     * @param  string  $topic  The topic name
      * @return array<string, mixed> Complete configuration for the topic
      */
     protected static function getTopicConfig(string $topic): array
@@ -90,9 +90,9 @@ class StreamPulse
     /**
      * Publish an event to a topic.
      *
-     * @param string $topic The topic to publish to
-     * @param array<string, mixed> $payload The event data to publish
-     * @return void
+     * @param  string  $topic  The topic to publish to
+     * @param  array<string, mixed>  $payload  The event data to publish
+     *
      * @throws InvalidArgumentException When topic validation fails in strict mode
      */
     public static function publish(string $topic, array $payload): void
@@ -111,9 +111,9 @@ class StreamPulse
      * This method defers event publication until after the database transaction completes
      * successfully, ensuring data consistency between the database and event stream.
      *
-     * @param string $topic The topic to publish to
-     * @param array<string, mixed> $payload The event data to publish
-     * @return void
+     * @param  string  $topic  The topic to publish to
+     * @param  array<string, mixed>  $payload  The event data to publish
+     *
      * @throws InvalidArgumentException When topic validation fails in strict mode
      */
     public static function publishAfterCommit(string $topic, array $payload): void
@@ -126,9 +126,8 @@ class StreamPulse
     /**
      * Register a handler function for a specific topic.
      *
-     * @param string $topic The topic to register a handler for
-     * @param callable $handler The function to handle events from this topic
-     * @return void
+     * @param  string  $topic  The topic to register a handler for
+     * @param  callable  $handler  The function to handle events from this topic
      */
     public static function on(string $topic, callable $handler): void
     {
@@ -138,7 +137,7 @@ class StreamPulse
     /**
      * Retrieve the registered handler for a topic.
      *
-     * @param string $topic The topic to get the handler for
+     * @param  string  $topic  The topic to get the handler for
      * @return callable|null The handler function if registered, null otherwise
      */
     public static function getHandler(string $topic): ?callable
@@ -149,10 +148,10 @@ class StreamPulse
     /**
      * Consume events from a topic using the registered or provided handler.
      *
-     * @param string $topic The topic to consume from
-     * @param string $group The consumer group name
-     * @param callable|null $callback Optional callback to use instead of registered handler
-     * @return void
+     * @param  string  $topic  The topic to consume from
+     * @param  string  $group  The consumer group name
+     * @param  callable|null  $callback  Optional callback to use instead of registered handler
+     *
      * @throws InvalidArgumentException When topic validation fails in strict mode
      */
     public static function consume(string $topic, string $group, ?callable $callback = null): void
@@ -172,8 +171,8 @@ class StreamPulse
     /**
      * Validate that a topic exists in configuration when strict mode is enabled.
      *
-     * @param string $topic The topic to validate
-     * @return void
+     * @param  string  $topic  The topic to validate
+     *
      * @throws InvalidArgumentException When topic is not defined in strict mode
      */
     public static function validateTopic(string $topic): void
