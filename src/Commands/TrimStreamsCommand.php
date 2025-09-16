@@ -49,8 +49,9 @@ class TrimStreamsCommand extends Command
         try {
             $driver = StreamPulse::getDriver();
 
-            if (!$driver instanceof StreamUIInterface) {
+            if (! $driver instanceof StreamUIInterface) {
                 $this->error('Driver does not implement StreamUIInterface');
+
                 return self::FAILURE;
             }
 
@@ -58,18 +59,19 @@ class TrimStreamsCommand extends Command
 
             if (empty($topics)) {
                 $this->info('No topics found to trim.');
+
                 return $exitCode;
             }
 
             $success = $this->trimAllTopics($driver, $topics);
 
-            if (!$success) {
+            if (! $success) {
                 $exitCode = self::FAILURE;
             }
-            $this->info("All streams trimmed successfully.");
+            $this->info('All streams trimmed successfully.');
         } catch (\Exception $e) {
-            $this->error("Error trimming streams: " . $e->getMessage());
-            Log::error("Error in TrimStreamsCommand", [
+            $this->error('Error trimming streams: '.$e->getMessage());
+            Log::error('Error in TrimStreamsCommand', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -82,8 +84,8 @@ class TrimStreamsCommand extends Command
     /**
      * Trim all topics according to their retention policy.
      *
-     * @param mixed $driver The event store driver
-     * @param array $topics List of topics to trim
+     * @param  mixed  $driver  The event store driver
+     * @param  array  $topics  List of topics to trim
      * @return bool Success status
      */
     protected function trimAllTopics($driver, array $topics): bool
@@ -94,8 +96,8 @@ class TrimStreamsCommand extends Command
             try {
                 $driver->applyRetention($topic);
             } catch (\Exception $e) {
-                $this->error("Error trimming topic {$topic}: " . $e->getMessage());
-                Log::error("Error trimming topic", [
+                $this->error("Error trimming topic {$topic}: ".$e->getMessage());
+                Log::error('Error trimming topic', [
                     'topic' => $topic,
                     'error' => $e->getMessage(),
                 ]);
