@@ -307,7 +307,6 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
             if (! empty($message)) {
                 $this->redis->xAdd($deadLetterStream, '*', $message[$messageId]);
-                $this->applyRetention($dlqName);
                 $this->redis->xAck($streamName, $group, [$messageId]);
             }
         }

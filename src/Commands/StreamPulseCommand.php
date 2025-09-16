@@ -127,7 +127,7 @@ class StreamPulseCommand extends Command
                         $processedMessages++;
                         $processedInBatch++;
                     } catch (\Throwable $e) {
-
+                        // Log the error
                         Log::error('[StreamPulse] Failed to process message', [
                             'topic' => $topic,
                             'message_id' => $messageId,
@@ -136,7 +136,10 @@ class StreamPulseCommand extends Command
                             'trace' => $e->getTraceAsString(),
                         ]);
 
-                        $this->error("[StreamPulse] Failed to process message {$messageId} for topic {$topic}: ".$e->getMessage());
+                        // Move the failed message to DLQ
+                        StreamPulse::getDriver()->fail($topic, $messageId, $group);
+
+                        $this->line("[StreamPulse] Message moved to DLQ for topic: {$topic}");
                     }
                 });
 
@@ -146,7 +149,7 @@ class StreamPulseCommand extends Command
                 }
             }
         } catch (\Exception $e) {
-            $this->error('[StreamPulse] Error in consumer loop: '.$e->getMessage());
+            $this->error('[StreamPulse] Error in consumer loop: ' . $e->getMessage());
             Log::error('[StreamPulse] Consumer error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
