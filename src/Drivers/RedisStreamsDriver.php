@@ -4,6 +4,7 @@ namespace StreamPulse\StreamPulse\Drivers;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Event;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 use StreamPulse\StreamPulse\Contracts\StreamUIInterface;
 
@@ -108,11 +109,26 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
      */
     public function applyRetention(string $topic): void
     {
+        $startTime = microtime(true);
         $streamName = $this->getStreamName($topic);
         $retention = $this->getRetention($topic);
 
+        // Dispatch event before applying retention
+        Event::dispatch('stream-pulse.retention-applying', [
+            'topic' => $topic,
+            'retention' => $retention
+        ]);
+
         if ($retention > 0) {
-            $this->redis->xTrim($streamName, 'MAXLEN', '~', $retention);
+            $trimmed = $this->redis->xTrim($streamName, 'MAXLEN', '~', $retention);
+
+            // Dispatch event after applying retention
+            Event::dispatch('stream-pulse.retention-applied', [
+                'topic' => $topic,
+                'retention' => $retention,
+                'trimmed_count' => $trimmed,
+                'duration' => microtime(true) - $startTime
+            ]);
         }
     }
 
@@ -148,6 +164,11 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
     {
         $streamName = $this->getStreamName($topic);
 
+        // Dispatch event before publishing
+        Event::dispatch('stream-pulse.publishing', [$topic, $payload, $config]);
+
+        $startTime = microtime(true);
+
         $formattedPayload = [];
         foreach ($payload as $key => $value) {
             if (is_array($value) || is_object($value)) {
@@ -166,7 +187,17 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             }
         }
 
-        $this->redis->xAdd($streamName, '*', $formattedPayload);
+        $messageId = $this->redis->xAdd($streamName, '*', $formattedPayload);
+
+        $duration = microtime(true) - $startTime;
+
+        // Dispatch event after publishing
+        Event::dispatch('stream-pulse.published', [
+            'topic' => $topic,
+            'message_id' => $messageId,
+            'duration' => $duration,
+            'size' => strlen(json_encode($formattedPayload))
+        ]);
     }
 
     /**
@@ -217,6 +248,17 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         $streamName = $this->getStreamName($topic);
         $consumerName = gethostname() . ':' . getmypid();
 
+        // Dispatch event before consuming
+        Event::dispatch('stream-pulse.consuming', [
+            'topic' => $topic,
+            'group' => $group,
+            'consumer' => $consumerName
+        ]);
+
+        $startTime = microtime(true);
+        $messageCount = 0;
+        $errorCount = 0;
+
         try {
             $this->redis->xGroup('CREATE', $streamName, $group, '0', true);
         } catch (\Exception $e) {
@@ -234,17 +276,55 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         if ($newMessages) {
             foreach ($newMessages as $messages) {
                 foreach ($messages as $messageId => $payload) {
+                    $processingStartTime = microtime(true);
                     try {
                         // Hydrate the payload before passing to callback
                         $hydratedPayload = $this->hydrate($payload);
+
+                        // Dispatch event before processing message
+                        Event::dispatch('stream-pulse.message-processing', [
+                            'topic' => $topic,
+                            'message_id' => $messageId,
+                            'group' => $group
+                        ]);
+
                         $callback($hydratedPayload, $messageId);
                         $this->ack($topic, $messageId, $group);
+                        $messageCount++;
+
+                        // Dispatch event after message processed
+                        Event::dispatch('stream-pulse.message-processed', [
+                            'topic' => $topic,
+                            'message_id' => $messageId,
+                            'duration' => microtime(true) - $processingStartTime,
+                            'success' => true
+                        ]);
                     } catch (\Exception $e) {
+                        $errorCount++;
                         Log::error("Error processing message {$messageId} from {$topic}: " . $e->getMessage());
+
+                        // Dispatch event for failed message
+                        Event::dispatch('stream-pulse.message-failed', [
+                            'topic' => $topic,
+                            'message_id' => $messageId,
+                            'error' => $e->getMessage(),
+                            'duration' => microtime(true) - $processingStartTime
+                        ]);
                     }
                 }
             }
         }
+
+        $duration = microtime(true) - $startTime;
+
+        // Dispatch event after consuming batch
+        Event::dispatch('stream-pulse.consumed', [
+            'topic' => $topic,
+            'group' => $group,
+            'duration' => $duration,
+            'message_count' => $messageCount,
+            'error_count' => $errorCount
+        ]);
     }
 
     /**
@@ -290,12 +370,38 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
     public function ack(string $topic, string $messageId, string $group): void
     {
+        $startTime = microtime(true);
+
+        // Dispatch event before acknowledging message
+        Event::dispatch('stream-pulse.acknowledging', [
+            'topic' => $topic,
+            'message_id' => $messageId,
+            'group' => $group
+        ]);
+
         $streamName = $this->getStreamName($topic);
         $this->redis->xAck($streamName, $group, [$messageId]);
+
+        // Dispatch event after acknowledging message
+        Event::dispatch('stream-pulse.acknowledged', [
+            'topic' => $topic,
+            'message_id' => $messageId,
+            'group' => $group,
+            'duration' => microtime(true) - $startTime
+        ]);
     }
 
     public function fail(string $topic, string $messageId, string $group): void
     {
+        $startTime = microtime(true);
+
+        // Dispatch event before failing message
+        Event::dispatch('stream-pulse.failing', [
+            'topic' => $topic,
+            'message_id' => $messageId,
+            'group' => $group
+        ]);
+
         $dlqName = $this->getDLQ($topic);
         $streamName = $this->getStreamName($topic);
         $deadLetterStream = $this->getStreamName($dlqName);
@@ -308,7 +414,36 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
             if (! empty($message)) {
                 $this->redis->xAdd($deadLetterStream, '*', $message[$messageId]);
                 $this->redis->xAck($streamName, $group, [$messageId]);
+
+                // Dispatch event after failing message
+                Event::dispatch('stream-pulse.failed', [
+                    'topic' => $topic,
+                    'message_id' => $messageId,
+                    'dlq' => $dlqName,
+                    'duration' => microtime(true) - $startTime,
+                    'success' => true
+                ]);
+            } else {
+                // Dispatch event for message not found
+                Event::dispatch('stream-pulse.failed', [
+                    'topic' => $topic,
+                    'message_id' => $messageId,
+                    'dlq' => $dlqName,
+                    'duration' => microtime(true) - $startTime,
+                    'success' => false,
+                    'reason' => 'Message not found in stream'
+                ]);
             }
+        } else {
+            // Dispatch event for message not pending
+            Event::dispatch('stream-pulse.failed', [
+                'topic' => $topic,
+                'message_id' => $messageId,
+                'dlq' => $dlqName,
+                'duration' => microtime(true) - $startTime,
+                'success' => false,
+                'reason' => 'Message not pending'
+            ]);
         }
     }
 

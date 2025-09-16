@@ -3,6 +3,7 @@
 namespace StreamPulse\StreamPulse;
 
 use InvalidArgumentException;
+use Illuminate\Support\Facades\Event;
 use StreamPulse\StreamPulse\Contracts\EventStoreDriver;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 
@@ -97,12 +98,26 @@ class StreamPulse
      */
     public static function publish(string $topic, array $payload): void
     {
+        $startTime = microtime(true);
+
+        // Dispatch telemetry event at facade level
+        Event::dispatch('stream-pulse.publish-requested', [
+            'topic' => $topic,
+            'payload_size' => strlen(json_encode($payload))
+        ]);
+
         self::validateTopic($topic);
 
         $config = self::getTopicConfig($topic);
         $driver = self::getDriver();
 
         $driver->publish($topic, $payload, $config);
+
+        // Dispatch telemetry event after publishing
+        Event::dispatch('stream-pulse.publish-completed', [
+            'topic' => $topic,
+            'duration' => microtime(true) - $startTime
+        ]);
     }
 
     /**
@@ -118,6 +133,12 @@ class StreamPulse
      */
     public static function publishAfterCommit(string $topic, array $payload): void
     {
+        // Dispatch telemetry event for deferred publishing
+        Event::dispatch('stream-pulse.publish-deferred', [
+            'topic' => $topic,
+            'payload_size' => strlen(json_encode($payload))
+        ]);
+
         self::validateTopic($topic);
         $config = self::getTopicConfig($topic);
         app(Support\TransactionAwareEvents::class)->store($topic, $payload, $config);
@@ -156,16 +177,36 @@ class StreamPulse
      */
     public static function consume(string $topic, string $group, ?callable $callback = null): void
     {
+        $startTime = microtime(true);
+
+        // Dispatch telemetry event before consumption
+        Event::dispatch('stream-pulse.consume-requested', [
+            'topic' => $topic,
+            'group' => $group
+        ]);
+
         self::validateTopic($topic);
 
         $driver = self::getDriver();
         $handler = $callback ?? (self::$handlers[$topic] ?? null);
 
         if ($handler === null) {
+            Event::dispatch('stream-pulse.consume-error', [
+                'topic' => $topic,
+                'group' => $group,
+                'error' => 'No handler registered'
+            ]);
             throw new InvalidArgumentException("No handler registered for topic [$topic]");
         }
 
         $driver->consume($topic, $handler, $group);
+
+        // Dispatch telemetry event after consumption
+        Event::dispatch('stream-pulse.consume-completed', [
+            'topic' => $topic,
+            'group' => $group,
+            'duration' => microtime(true) - $startTime
+        ]);
     }
 
     /**
