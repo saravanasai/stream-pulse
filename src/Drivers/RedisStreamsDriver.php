@@ -120,8 +120,7 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
         ]);
 
         if ($retention > 0) {
-            $trimmed = $this->redis->xTrim($streamName, 'MAXLEN', '~', $retention);
-
+            $trimmed = $this->redis->xTrim($streamName, $retention);
             // Dispatch event after applying retention
             Event::dispatch('stream-pulse.retention-applied', [
                 'topic' => $topic,
@@ -488,16 +487,35 @@ class RedisStreamsDriver implements EventStoreDriver, StreamUIInterface
 
     /**
      * List all available topics/streams.
+     *
+     * Uses Redis scan command to retrieve all stream keys and extracts topic names
+     * from the full key pattern.
+     *
+     * @return array Array of topic names
      */
     public function listTopics(): array
     {
-        // We need to use the full prefix (Laravel + stream) when searching for keys
+        // Pattern to match all streams with our prefix
         $pattern = $this->fullPrefix . '*';
-        $keys = $this->redis->keys($pattern);
-        $topics = [];
+        $keys = [];
 
+        // Use scan command to reliably fetch keys matching our pattern
+        $iterator = null;
+        do {
+            $result = $this->redis->scan($iterator, $pattern, 100);
+            if ($result) {
+                $keys = array_merge($keys, $result);
+            }
+        } while ($iterator !== 0);
+
+        // If scan failed or returned no results, fall back to keys command
+        if (empty($keys)) {
+            $keys = $this->redis->keys($pattern);
+        }
+
+        // Extract topic names from the full key names
+        $topics = [];
         foreach ($keys as $key) {
-            // Skip failed topics/DLQs
             $topic = str_replace($this->fullPrefix, '', $key);
             $topics[] = $topic;
         }

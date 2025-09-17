@@ -17,8 +17,6 @@ const TEST_DLQ_STREAM = STREAM_PREFIX . TEST_DLQ;
 // Extend the test subclass to add getConsumerName
 class TestableRedisStreamsDriver extends RedisStreamsDriver
 {
-
-    public string $consumerName;
     public function testHydrate(array $payload): array
     {
         return $this->hydrate($payload);
