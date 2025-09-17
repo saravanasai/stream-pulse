@@ -149,7 +149,7 @@ class StreamPulseCommand extends Command
                 }
             }
         } catch (\Exception $e) {
-            $this->error('[StreamPulse] Error in consumer loop: ' . $e->getMessage());
+            $this->error('[StreamPulse] Error in consumer loop: '.$e->getMessage());
             Log::error('[StreamPulse] Consumer error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
