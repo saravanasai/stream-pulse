@@ -45,82 +45,6 @@
             </div>
         </div>
 
-        <!-- Topic Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div
-                class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden shadow-md transition-all hover:shadow-lg hover:scale-[1.02]">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0 rounded-md p-3 bg-blue-500 bg-opacity-10">
-                            <i class="fa-solid fa-bolt-lightning text-blue-400 text-xl"></i>
-                        </div>
-                        <div class="ml-5">
-                            <p class="text-sm font-medium text-gray-400">Event Count</p>
-                            <div class="flex items-baseline">
-                                <p class="text-2xl font-semibold text-white">{{ count($events) }}+</p>
-                                <span class="ml-2 text-xs text-blue-400">total</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-gray-800 px-4 py-2">
-                    <div class="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
-                        <div class="bg-blue-500 h-1 rounded-full" style="width: 75%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div
-                class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden shadow-md transition-all hover:shadow-lg hover:scale-[1.02]">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0 rounded-md p-3 bg-green-500 bg-opacity-10">
-                            <i class="fa-solid fa-gauge text-green-400 text-xl"></i>
-                        </div>
-                        <div class="ml-5">
-                            <p class="text-sm font-medium text-gray-400">Consumer Lag</p>
-                            <div class="flex items-baseline">
-                                <p class="text-2xl font-semibold text-white">0</p>
-                                <span class="ml-2 text-xs text-green-400">events</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-gray-800 px-4 py-2">
-                    <div class="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
-                        <div class="bg-green-500 h-1 rounded-full" style="width: 5%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div
-                class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden shadow-md transition-all hover:shadow-lg hover:scale-[1.02]">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0 rounded-md p-3 bg-yellow-500 bg-opacity-10">
-                            <i class="fa-solid fa-clock text-yellow-400 text-xl"></i>
-                        </div>
-                        <div class="ml-5">
-                            <p class="text-sm font-medium text-gray-400">Last Event</p>
-                            <div class="flex items-baseline">
-                                <p class="text-2xl font-semibold text-white">
-                                    @if (count($events) > 0)
-                                        {{ date('H:i:s', $events[0]['timestamp'] / 1000) }}
-                                    @else
-                                        -
-                                    @endif
-                                </p>
-                                @if (count($events) > 0)
-                                    <span
-                                        class="ml-2 text-xs text-yellow-400">{{ date('Y-m-d', $events[0]['timestamp'] / 1000) }}</span>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Events List -->
         <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
             <div class="px-4 py-5 border-b border-gray-800 sm:px-6 flex justify-between items-center">
@@ -149,10 +73,6 @@
                                 </th>
                                 <th scope="col"
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                                     Payload Preview
                                 </th>
                                 <th scope="col"
@@ -171,19 +91,6 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                                         {{ date('Y-m-d H:i:s', $event['timestamp'] / 1000) }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        @if (isset($event['is_failed']) && $event['is_failed'])
-                                            <span
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-900 text-red-300 border border-red-700">
-                                                Failed
-                                            </span>
-                                        @else
-                                            <span
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-900 text-green-300 border border-green-700">
-                                                Processed
-                                            </span>
-                                        @endif
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-300">
                                         <div class="truncate max-w-[200px]">

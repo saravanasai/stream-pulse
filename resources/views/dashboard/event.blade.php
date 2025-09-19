@@ -35,19 +35,6 @@
                         <i class="fa-solid fa-circle-info mr-2 text-redis-red"></i>
                         Event Summary
                     </h3>
-                    @if ($event['is_failed'])
-                        <span
-                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900 text-red-300 border border-red-700">
-                            <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-                            Failed
-                        </span>
-                    @else
-                        <span
-                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900 text-green-300 border border-green-700">
-                            <i class="fa-solid fa-check mr-1"></i>
-                            Processed
-                        </span>
-                    @endif
                 </div>
                 <div class="p-5">
                     <dl>
@@ -76,19 +63,6 @@
                             </dt>
                             <dd class="text-sm text-white">
                                 {{ date('Y-m-d H:i:s', $event['timestamp'] / 1000) }}
-                            </dd>
-                        </div>
-                        <div class="flex justify-between py-2">
-                            <dt class="text-sm font-medium text-gray-400 flex items-center">
-                                <i class="fa-solid fa-tag mr-2 text-gray-500"></i>
-                                Status:
-                            </dt>
-                            <dd class="text-sm text-white">
-                                @if ($event['is_failed'])
-                                    <span class="text-red-400 font-medium">Failed</span>
-                                @else
-                                    <span class="text-green-400 font-medium">Processed</span>
-                                @endif
                             </dd>
                         </div>
                     </dl>

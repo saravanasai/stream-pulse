@@ -45,8 +45,10 @@
             display: none !important;
         }
 
+        /* Remove or update the sidebar-height calculation */
         .sidebar-height {
-            height: calc(100vh - 64px);
+            height: 100%;
+            /* Changed from calc(100vh - 64px) to 100% */
         }
 
         /* Scrollbar Styling */
@@ -140,85 +142,10 @@
         <div class="flex">
             <!-- Sidebar backdrop -->
             <div :class="{ 'block': sidebarOpen, 'hidden': !sidebarOpen }"
-                class="fixed inset-0 z-40 lg:hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+                class="fixed inset-0 z-40 lg:hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300 h-full"
                 @click="sidebarOpen = false"></div>
 
-            <!-- Sidebar -->
-            <div :class="{ 'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen }"
-                class="fixed inset-y-0 left-0 z-40 w-64 transition duration-300 transform bg-gray-900 border-r border-gray-800 lg:static lg:inset-0 lg:translate-x-0 lg:block">
-                <div class="flex flex-col h-full sidebar-height">
-                    <div class="space-y-1 pt-5 px-3">
-                        <div
-                            class="flex items-center py-2 px-3 text-gray-400 text-xs uppercase tracking-wider font-medium mb-2">
-                            <i class="fa-solid fa-compass mr-2"></i> Navigation
-                        </div>
-                        <a href="{{ route('stream-pulse.dashboard') }}"
-                            class="flex items-center py-2 px-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded-md group {{ request()->routeIs('stream-pulse.dashboard') ? 'bg-gray-800 text-white' : '' }}">
-                            <i class="fa-solid fa-gauge-high w-5 h-5 mr-3 text-gray-400 group-hover:text-white"></i>
-                            <span>Dashboard</span>
-                        </a>
-                        <a href="{{ route('stream-pulse.failed') }}"
-                            class="flex items-center py-2 px-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded-md group {{ request()->routeIs('stream-pulse.failed') ? 'bg-gray-800 text-white' : '' }}">
-                            <i
-                                class="fa-solid fa-triangle-exclamation w-5 h-5 mr-3 text-gray-400 group-hover:text-white"></i>
-                            <span>Failed Events</span>
-                            <span class="ml-auto bg-redis-red text-white text-xs font-medium px-2 py-0.5 rounded-full">
-                                3
-                            </span>
-                        </a>
-                    </div>
 
-                    <div class="mt-6 px-3">
-                        <div
-                            class="flex items-center justify-between py-2 px-3 text-gray-400 text-xs uppercase tracking-wider font-medium mb-2">
-                            <div><i class="fa-solid fa-stream mr-2"></i> Topics</div>
-                            <div class="text-gray-400 text-xs cursor-pointer hover:text-white">
-                                <i class="fa-solid fa-plus"></i>
-                            </div>
-                        </div>
-                        <div class="max-h-60 overflow-y-auto px-2 space-y-1">
-                            <!-- Side menu topics will be dynamically loaded -->
-                            <a href="#"
-                                class="flex items-center py-2 px-3 text-sm text-gray-400 hover:bg-gray-800 hover:text-white rounded-md truncate">
-                                <i class="fa-solid fa-angle-right w-4 h-4 mr-2 text-gray-500"></i>
-                                <span>user-events</span>
-                            </a>
-                            <a href="#"
-                                class="flex items-center py-2 px-3 text-sm text-gray-400 hover:bg-gray-800 hover:text-white rounded-md truncate">
-                                <i class="fa-solid fa-angle-right w-4 h-4 mr-2 text-gray-500"></i>
-                                <span>payment-transactions</span>
-                            </a>
-                            <a href="#"
-                                class="flex items-center py-2 px-3 text-sm text-gray-400 hover:bg-gray-800 hover:text-white rounded-md truncate">
-                                <i class="fa-solid fa-angle-right w-4 h-4 mr-2 text-gray-500"></i>
-                                <span>api-logs</span>
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="mt-auto px-4 py-4 border-t border-gray-800">
-                        <div class="flex items-center px-3 py-2 bg-gray-800 rounded-md">
-                            <div class="flex-shrink-0 mr-3">
-                                <div
-                                    class="h-8 w-8 rounded-md bg-redis-red bg-opacity-20 flex items-center justify-center">
-                                    <i class="fa-solid fa-database text-redis-red"></i>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-sm font-medium text-white">Redis Driver</div>
-                                <div class="text-xs text-gray-400">Connected</div>
-                            </div>
-                            <div class="ml-auto">
-                                <span class="flex h-2 w-2 relative">
-                                    <span
-                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Main content -->
             <div class="flex-1 overflow-auto">
