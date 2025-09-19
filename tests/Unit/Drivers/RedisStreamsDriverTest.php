@@ -8,11 +8,11 @@ use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 // Define constants used in tests
 const STREAM_PREFIX = 'streampulse:';
 const TEST_TOPIC = 'test-topic';
-const TEST_STREAM = STREAM_PREFIX . TEST_TOPIC;
+const TEST_STREAM = STREAM_PREFIX.TEST_TOPIC;
 const TEST_GROUP = 'test-group';
 const TEST_MESSAGE_ID = '1234567890123-0';
 const TEST_DLQ = 'dlq-test-topic';
-const TEST_DLQ_STREAM = STREAM_PREFIX . TEST_DLQ;
+const TEST_DLQ_STREAM = STREAM_PREFIX.TEST_DLQ;
 
 // Extend the test subclass to add getConsumerName
 class TestableRedisStreamsDriver extends RedisStreamsDriver
@@ -236,7 +236,7 @@ test('fail moves messages to dead letter queue', function () {
 
     // Configure the driver
     Config::set('stream-pulse.drivers.redis.stream_prefix', STREAM_PREFIX);
-    Config::set('stream-pulse.topics.' . TEST_TOPIC . '.dlq', TEST_DLQ);
+    Config::set('stream-pulse.topics.'.TEST_TOPIC.'.dlq', TEST_DLQ);
 
     // Setup pending message
     $pendingMessage = [
@@ -316,7 +316,7 @@ test('fail moves messages to dead letter queue', function () {
 test('getDLQ returns default value when topic-specific DLQ not configured', function () {
     // Arrange
     Config::set('stream-pulse.defaults.dlq', 'default-dlq');
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $result = $driver->getDLQ('unconfigured-topic');
@@ -330,7 +330,7 @@ test('getDLQ returns topic-specific DLQ when configured', function () {
     // Arrange
     Config::set('stream-pulse.defaults.dlq', 'default-dlq');
     Config::set('stream-pulse.topics.custom-topic.dlq', 'custom-dlq');
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $result = $driver->getDLQ('custom-topic');
@@ -344,7 +344,7 @@ test('listTopics returns all available topics from Redis streams', function () {
     // Arrange
     $streamPrefix = 'test-prefix:';
     $redisPrefix = 'redis-prefix:';
-    $fullPrefix = $redisPrefix . $streamPrefix;
+    $fullPrefix = $redisPrefix.$streamPrefix;
 
     Config::set('stream-pulse.drivers.redis.stream_prefix', $streamPrefix);
     Config::set('database.redis.options.prefix', $redisPrefix);
@@ -366,14 +366,15 @@ test('listTopics returns all available topics from Redis streams', function () {
     $redisClient->shouldReceive('scan')
         ->once()
         ->withArgs(function (&$iterator, $pattern, $count) use ($fullPrefix) {
-            expect($pattern)->toBe($fullPrefix . '*');
+            expect($pattern)->toBe($fullPrefix.'*');
             expect($count)->toBe(100);
             $iterator = 1; // Set to non-zero to continue scanning
+
             return true;
         })
         ->andReturn([
-            $fullPrefix . 'topic1',
-            $fullPrefix . 'topic2'
+            $fullPrefix.'topic1',
+            $fullPrefix.'topic2',
         ]);
 
     // Second call returns more keys and sets iterator to 0 (done)
@@ -381,19 +382,20 @@ test('listTopics returns all available topics from Redis streams', function () {
         ->once()
         ->withArgs(function (&$iterator, $pattern, $count) use ($fullPrefix) {
             expect($iterator)->toBe(1);
-            expect($pattern)->toBe($fullPrefix . '*');
+            expect($pattern)->toBe($fullPrefix.'*');
             expect($count)->toBe(100);
             $iterator = 0; // Set to zero to end scanning
+
             return true;
         })
         ->andReturn([
-            $fullPrefix . 'topic3'
+            $fullPrefix.'topic3',
         ]);
 
     // We shouldn't need to fall back to keys command
     $redisClient->shouldNotReceive('keys');
 
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $result = $driver->listTopics();
@@ -407,7 +409,7 @@ test('listTopics falls back to keys command when scan returns no results', funct
     // Arrange
     $streamPrefix = 'test-prefix:';
     $redisPrefix = 'redis-prefix:';
-    $fullPrefix = $redisPrefix . $streamPrefix;
+    $fullPrefix = $redisPrefix.$streamPrefix;
 
     Config::set('stream-pulse.drivers.redis.stream_prefix', $streamPrefix);
     Config::set('database.redis.options.prefix', $redisPrefix);
@@ -427,8 +429,9 @@ test('listTopics falls back to keys command when scan returns no results', funct
     // Mock scan to return empty results
     $redisClient->shouldReceive('scan')
         ->once()
-        ->withArgs(function (&$iterator, $pattern, $count) use ($fullPrefix) {
+        ->withArgs(function (&$iterator, $pattern, $count) {
             $iterator = 0; // End scanning immediately
+
             return true;
         })
         ->andReturn([]);
@@ -436,13 +439,13 @@ test('listTopics falls back to keys command when scan returns no results', funct
     // Now the fallback to keys should be called
     $redisClient->shouldReceive('keys')
         ->once()
-        ->with($fullPrefix . '*')
+        ->with($fullPrefix.'*')
         ->andReturn([
-            $fullPrefix . 'fallback-topic1',
-            $fullPrefix . 'fallback-topic2'
+            $fullPrefix.'fallback-topic1',
+            $fullPrefix.'fallback-topic2',
         ]);
 
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
 
     // Act
     $result = $driver->listTopics();

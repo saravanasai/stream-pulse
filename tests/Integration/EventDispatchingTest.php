@@ -4,7 +4,6 @@ namespace StreamPulse\StreamPulse\Tests\Integration;
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Redis;
-use StreamPulse\StreamPulse\Tests\TestCase;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 
 /**
@@ -21,10 +20,10 @@ test('driver dispatches appropriate events during operations', function () {
         'stream-pulse.failing',
         'stream-pulse.failed',
         'stream-pulse.retention-applying',
-        'stream-pulse.retention-applied'
+        'stream-pulse.retention-applied',
     ]);
 
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
     $topic = 'event-test-topic';
     $group = 'event-test-group';
 
@@ -52,7 +51,7 @@ test('driver dispatches appropriate events during operations', function () {
  * Test Cross-Language Compatibility
  */
 test('messages are serialized with type information for cross-language compatibility', function () {
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
     $topic = 'cross-language-topic';
     $redis = Redis::connection()->client();
 
@@ -67,7 +66,7 @@ test('messages are serialized with type information for cross-language compatibi
         'boolean' => true,
         'null_value' => null,
         'array' => ['item1', 'item2'],
-        'object' => ['key1' => 'value1', 'key2' => 'value2']
+        'object' => ['key1' => 'value1', 'key2' => 'value2'],
     ];
 
     $driver->publish($topic, $complexPayload, []);
@@ -90,6 +89,7 @@ test('messages are serialized with type information for cross-language compatibi
     $receivedPayload = null;
     $driver->consume($topic, function ($payload) use (&$receivedPayload) {
         $receivedPayload = $payload;
+
         return true;
     }, 'test-group');
 
