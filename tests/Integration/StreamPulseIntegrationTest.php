@@ -4,7 +4,6 @@ namespace StreamPulse\StreamPulse\Tests\Integration;
 
 use Illuminate\Support\Facades\Redis;
 use StreamPulse\StreamPulse\Tests\TestCase;
-use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
 
 /**
  * Integration tests for StreamPulse with real Redis connection
@@ -29,7 +28,7 @@ class StreamPulseIntegrationTest extends TestCase
             'stream-pulse.defaults.max_retries' => 3,
             'stream-pulse.defaults.min_idle_time' => 1000, // 1 second for faster testing
             'stream-pulse.defaults.retention' => 100,
-            'stream-pulse.defaults.dlq' => 'test-dlq'
+            'stream-pulse.defaults.dlq' => 'test-dlq',
         ]);
 
         // Clean up Redis test database before each test

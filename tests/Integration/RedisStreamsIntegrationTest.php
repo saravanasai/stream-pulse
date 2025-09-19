@@ -2,20 +2,17 @@
 
 namespace StreamPulse\StreamPulse\Tests\Integration;
 
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Event;
-use StreamPulse\StreamPulse\Tests\TestCase;
+use Illuminate\Support\Facades\Redis;
 use StreamPulse\StreamPulse\Drivers\RedisStreamsDriver;
-use StreamPulse\StreamPulse\Tests\Integration\MessageProcessingException;
-use StreamPulse\StreamPulse\Tests\Integration\ProcessingTestException;
 
 /**
  * Test Producer-Consumer Integration
  */
 test('messages published by producer can be consumed by consumer', function () {
     // Create driver instances representing different applications
-    $producerDriver = new RedisStreamsDriver();
-    $consumerDriver = new RedisStreamsDriver();
+    $producerDriver = new RedisStreamsDriver;
+    $consumerDriver = new RedisStreamsDriver;
     $topic = 'integration-test-topic';
     $group = 'integration-test-group';
 
@@ -25,7 +22,7 @@ test('messages published by producer can be consumed by consumer', function () {
         'name' => 'test item',
         'properties' => ['color' => 'blue', 'size' => 'medium'],
         'active' => true,
-        'price' => 19.99
+        'price' => 19.99,
     ];
 
     // Dispatch and consume event
@@ -40,6 +37,7 @@ test('messages published by producer can be consumed by consumer', function () {
     Event::fake(['stream-pulse.consuming', 'stream-pulse.consumed']);
     $consumerDriver->consume($topic, function ($payload) use (&$receivedMessage) {
         $receivedMessage = $payload;
+
         return true; // successful processing
     }, $group);
 
@@ -58,7 +56,7 @@ test('messages published by producer can be consumed by consumer', function () {
  * Test Retention Policy (Simplified)
  */
 test('retention policy trims stream to exact retention limit', function () {
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
     $topic = 'retention-policy-test-simple';
     $retentionLimit = 5;
 
@@ -68,7 +66,7 @@ test('retention policy trims stream to exact retention limit', function () {
     $redis->del($streamName);
 
     // Set retention config
-    config(['stream-pulse.topics.' . $topic . '.retention' => $retentionLimit]);
+    config(['stream-pulse.topics.'.$topic.'.retention' => $retentionLimit]);
 
     // Publish 10 events
     for ($i = 1; $i <= 10; $i++) {
@@ -91,17 +89,17 @@ test('retention policy trims stream to exact retention limit', function () {
  * Test Dead Letter Queue
  */
 test('messages that fail processing are retried and eventually sent to DLQ', function () {
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
     // Use a unique topic name
-    $topic = 'retry-test-topic-' . uniqid();
+    $topic = 'retry-test-topic-'.uniqid();
     $group = 'retry-test-group';
     $redis = Redis::connection()->client();
 
     // Configure for quick testing with just 1 retry
     config([
-        'stream-pulse.topics.' . $topic . '.max_retries' => 1,  // Reduced to 1 for faster testing
-        'stream-pulse.topics.' . $topic . '.min_idle_time' => 100, // 0.1 seconds for faster testing
-        'stream-pulse.topics.' . $topic . '.dlq' => 'retry-test-dlq-' . uniqid(),
+        'stream-pulse.topics.'.$topic.'.max_retries' => 1,  // Reduced to 1 for faster testing
+        'stream-pulse.topics.'.$topic.'.min_idle_time' => 100, // 0.1 seconds for faster testing
+        'stream-pulse.topics.'.$topic.'.dlq' => 'retry-test-dlq-'.uniqid(),
     ]);
 
     // Get the configured DLQ name
@@ -109,7 +107,7 @@ test('messages that fail processing are retried and eventually sent to DLQ', fun
     $dlqStreamName = $driver->getStreamName($dlqName);
 
     // Publish a test message
-    $messageData = ['value' => 'test-retry-' . uniqid()];
+    $messageData = ['value' => 'test-retry-'.uniqid()];
     $driver->publish($topic, $messageData, []);
 
     // Create the consumer group manually to ensure it exists
@@ -117,7 +115,7 @@ test('messages that fail processing are retried and eventually sent to DLQ', fun
     // Process message once to make it pending
     try {
         $driver->consume($topic, function () {
-            throw new ProcessingTestException("Simulated failure");
+            throw new ProcessingTestException('Simulated failure');
         }, $group);
     } catch (\Exception $e) {
         // Expected exception
@@ -129,6 +127,7 @@ test('messages that fail processing are retried and eventually sent to DLQ', fun
     if (empty($messages)) {
         // If no messages in the stream, the test can't continue
         expect($messages)->not->toBeEmpty('No messages found in the stream');
+
         return;
     }
 
@@ -144,7 +143,7 @@ test('messages that fail processing are retried and eventually sent to DLQ', fun
     expect($dlqMessages)->not->toBeEmpty('No messages found in the DLQ');
 
     // 5. Verify the message content matches
-    if (!empty($dlqMessages)) {
+    if (! empty($dlqMessages)) {
         $firstDlqMessage = reset($dlqMessages);
         expect($firstDlqMessage['value'])->toBe($messageData['value']);
     }
@@ -154,7 +153,7 @@ test('messages that fail processing are retried and eventually sent to DLQ', fun
  * Test Ordered Message Processing
  */
 test('ordered topics process messages strictly in order', function () {
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
     $topic = 'ordered-test-topic';
     $group = 'ordered-test-group';
     $streamName = $driver->getStreamName($topic);
@@ -164,7 +163,7 @@ test('ordered topics process messages strictly in order', function () {
     $redis->del($streamName);
 
     // Configure ordering
-    config(['stream-pulse.topics.' . $topic . '.preserve_order' => true]);
+    config(['stream-pulse.topics.'.$topic.'.preserve_order' => true]);
 
     // Publish test messages with sequence numbers
     for ($i = 1; $i <= 10; $i++) {
@@ -178,6 +177,7 @@ test('ordered topics process messages strictly in order', function () {
     for ($i = 0; $i < 10; $i++) {
         $driver->consume($topic, function ($payload) use (&$receivedSequence) {
             $receivedSequence[] = $payload['sequence'];
+
             return true;
         }, $group);
     }
@@ -194,7 +194,7 @@ test('ordered topics process messages strictly in order', function () {
  * Test Multiple Consumer Groups
  */
 test('multiple consumer groups can process the same stream independently', function () {
-    $driver = new RedisStreamsDriver();
+    $driver = new RedisStreamsDriver;
     $topic = 'multi-group-topic';
     $group1 = 'group-1';
     $group2 = 'group-2';
@@ -211,12 +211,14 @@ test('multiple consumer groups can process the same stream independently', funct
     // Consume with group 1
     $driver->consume($topic, function ($payload) use (&$group1Processed) {
         $group1Processed[] = $payload['value'];
+
         return true;
     }, $group1);
 
     // Consume with group 2
     $driver->consume($topic, function ($payload) use (&$group2Processed) {
         $group2Processed[] = $payload['value'];
+
         return true;
     }, $group2);
 
