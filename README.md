@@ -1,16 +1,56 @@
 # <img src="resources/images/logo.png" alt="StreamPulse Logo" width="200" height="100" style="vertical-align: middle;">
 
-StreamPulse is a Laravel package for event streaming with support for multiple drivers. It provides a simple, unified API for publishing and consuming events across different streaming platforms.
+## Reliable Event Streaming for Laravel Applications
 
-## Features
+StreamPulse provides a seamless event streaming experience for Laravel developers. With a clean, intuitive API that feels native to the Laravel ecosystem, you can build robust, event-driven applications with minimal setup and configuration.
 
--   Simple, Laravel-style API for event streaming
--   Redis Streams driver implementation
--   Consumer group support for distributed event processing
--   Dead letter queue for failed message handling
--   UI Dashboard for monitoring streams and events
--   Extensible architecture to support additional drivers
--   Strict mode for controlled topic creation
+![StreamPulse Dashboard](resources/images/dashboard.png)
+
+> **BETA VERSION** - StreamPulse is currently in beta. We'd love your feedback to help shape its future! Star the repo, open issues, or contribute to make StreamPulse even better.
+
+## Why StreamPulse?
+
+-   **Laravel-native experience** - API designed to feel natural to Laravel developers
+-   **Simplified event streaming** - Complex Redis Streams concepts abstracted away
+-   **Transaction awareness** - Events can be tied to database transactions
+-   **Resilient processing** - Built-in support for retries and dead letter queues
+-   **Real-time monitoring** - Beautiful dashboard for stream visualization and management
+
+## Quick Start
+
+### Installation
+
+```bash
+composer require saravanasai/stream-pulse
+```
+
+> **Note:** StreamPulse is designed for distributed systems where events can be published in one Laravel application and consumed in another. Events are persisted in Redis, allowing for communication between separate applications.
+
+### Basic Usage
+
+```php
+// In your producer Laravel application
+// Publish an event
+StreamPulse::publish('orders', ['id' => 1234, 'amount' => 99.99]);
+
+// In your consumer Laravel application
+// Register an event handler - app service provider
+StreamPulse::on('orders', function ($payload, $messageId) {
+    OrderProcessor::process($payload);
+});
+
+// Run the consumer to process events (in the consumer app)
+// php artisan streampulse:consume orders
+```
+
+## Key Features
+
+-   **Simple, Laravel-style API** for publishing and consuming events
+-   **Redis Streams integration** with plans for additional drivers
+-   **Consumer group support** for distributed event processing
+-   **Dead letter queue** for failed message handling
+-   **Transaction-aware publishing** to ensure data consistency
+-   **UI Dashboard** for monitoring streams and events
 
 ## Installation
 
@@ -32,72 +72,11 @@ You can also publish the views to customize the UI dashboard:
 php artisan vendor:publish --tag="stream-pulse-views"
 ```
 
-For a complete step-by-step setup, check the [Quick Start Guide](docs/quick-start.md).
+### Redis Requirements
 
-This is the contents of the published config file:
+You need Redis 5.0+ properly configured in your Laravel application.
 
-```php
-return [
-    /*
-    |--------------------------------------------------------------------------
-    | Default Driver
-    |--------------------------------------------------------------------------
-    |
-    | StreamPulse supports multiple backends. Choose which driver to use
-    | globally. Available: "redis", "nats"
-    |
-    */
-    'driver' => env('STREAMPULSE_DRIVER', 'redis'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Strict Mode
-    |--------------------------------------------------------------------------
-    |
-    | When strict mode is enabled, only topics explicitly defined in the
-    | configuration can be used. This prevents accidental topic creation.
-    |
-    */
-    'strict_mode' => env('STREAMPULSE_STRICT_MODE', true),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Global Defaults
-    |--------------------------------------------------------------------------
-    |
-    | These settings apply to all topics unless overridden below.
-    |
-    */
-    'defaults' => [
-        'max_retries' => 3,
-        'dlq' => 'dead_letter',
-        'retention' => 1000, // Redis only: default max length
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Topics
-    |--------------------------------------------------------------------------
-    |
-    | Define per-topic configuration. Each topic can override retry count,
-    | DLQ destination, and retention policy.
-    |
-    */
-    'topics' => [
-        'orders' => [
-            'max_retries' => 5,
-            'dlq' => 'orders_dlq',
-            'retention' => 5000,
-        ],
-    ],
-
-    // Additional configuration...
-];
-```
-
-For detailed configuration information, check the [Configuration Guide](docs/configuration.md).
-
-## Usage
+## Usage Examples
 
 ### Publishing Events
 
@@ -118,96 +97,6 @@ StreamPulse::publish('orders', [
 
 // Publish after DB transaction commits
 StreamPulse::publishAfterCommit('orders', $orderData);
-```
-
-### Consuming Events with Handlers
-
-The recommended way to consume events is to register handlers for your topics:
-
-```php
-// In a service provider
-StreamPulse::on('orders', function ($payload, $messageId) {
-    // Process the order
-    OrderProcessor::process($payload);
-});
-
-// Then run the consumer command
-// php artisan streampulse:consume orders
-```
-
-The consumer command will handle all the complexities of polling, acknowledgments, retries, and DLQ management for you.
-
-See the [Consumer API documentation](docs/consumer-api.md) for more details on event handling, retry policies, and scaling.
-
-### Low-level Consumption API
-
-For more control, you can use the low-level consumption API:
-
-```php
-use StreamPulse\StreamPulse\Facades\StreamPulse;
-
-// Consume events from a topic with a consumer group
-StreamPulse::consume('orders', 'order-processors', function ($payload, $messageId) {
-    try {
-        // Process the event
-        OrderProcessor::process($payload);
-
-        // Acknowledge the message as processed
-        StreamPulse::ack('orders', $messageId, 'order-processors');
-    } catch (\Exception $e) {
-        // Handle error
-        // The message will remain in pending state and can be retried
-        // After max retries, it will be moved to the DLQ automatically
-    }
-});
-```
-
-Publish events to a specified topic:
-
-```php
-use StreamPulse\StreamPulse\Facades\StreamPulse;
-
-// Publish an event
-StreamPulse::publish('orders', [
-    'id' => 1,
-    'status' => 'created',
-    'customer_id' => 123,
-    'amount' => 99.99,
-]);
-```
-
-### Stream Retention Management
-
-StreamPulse automatically manages Redis streams to prevent unbounded growth:
-
-```php
-// Define global defaults in config/streampulse.php
-'defaults' => [
-    'retention' => 1000, // Keep 1000 events per stream by default
-],
-
-// Override for specific topics
-'topics' => [
-    'orders' => [
-        'retention' => 5000, // Keep more events for important topics
-    ],
-    'logs' => [
-        'retention' => 500, // Keep fewer events for high-volume topics
-    ],
-],
-```
-
-You can also manually trim streams with the provided Artisan command:
-
-```bash
-# Trim a specific topic to its configured retention limit
-php artisan streampulse:trim orders
-
-# Trim all topics
-php artisan streampulse:trim --all
-
-# Override the retention length
-php artisan streampulse:trim orders --length=100
 ```
 
 ### Transaction-Aware Event Publishing
@@ -237,88 +126,174 @@ DB::transaction(function () {
 });
 ```
 
-### Consuming Events
+### Consuming Events with Handlers
 
-Consume events from a topic with a consumer group:
+The recommended way to consume events is to register handlers for your topics:
 
 ```php
-use StreamPulse\StreamPulse\Facades\StreamPulse;
-
-// Consume events
-StreamPulse::consume('orders', 'billing-service', function ($event, $messageId) {
-    // Process the event
-    logger('Processing order: ' . $event['id']);
-
-    // After successful processing, acknowledge the message
-    StreamPulse::ack('orders', $messageId, 'billing-service');
+// In a service provider
+StreamPulse::on('orders', function ($payload, $messageId) {
+    // Process the order
+    OrderProcessor::process($payload);
 });
+
+// Then run the consumer command
+// php artisan streampulse:consume orders
 ```
 
-#### How Consume Works
+The consumer command will handle all the complexities of polling, acknowledgments, retries, and DLQ management for you.
 
-The `consume` method takes three parameters:
+### Stream Retention Management
 
--   `topic`: The stream topic to consume from (will be prefixed automatically)
--   `group`: Consumer group name for distributed processing
--   `callback`: Function that receives `($event, $messageId)` for each message
+StreamPulse automatically manages Redis streams to prevent unbounded growth:
 
-When called, it:
+```php
+// Define global defaults in config/streampulse.php
+'defaults' => [
+    'retention' => 1000, // Keep 1000 events per stream by default
+],
 
-1. Creates the consumer group if it doesn't exist
-2. Reads messages assigned to this consumer
-3. Passes each message to your callback function
-4. Requires explicit acknowledgment via `ack()` or `fail()`
+// Override for specific topics
+'topics' => [
+    'orders' => [
+        'retention' => 5000, // Keep more events for important topics
+    ],
+    'logs' => [
+        'retention' => 500, // Keep fewer events for high-volume topics
+    ],
+],
+```
 
-### Error Handling
+StreamPulse uses Redis's built-in XLEN and XTRIM commands to manage stream size. The retention value specifies the maximum number of messages that should be kept in each stream. When new messages are published, older messages exceeding this limit are automatically trimmed from the stream.
 
-If processing fails, you can mark a message as failed:
+Key retention considerations:
+
+-   **Higher retention values** provide longer message history but consume more memory
+-   **Lower retention values** minimize memory usage but reduce how far back you can access messages
+-   **Topic-specific overrides** allow you to balance memory usage based on each stream's importance
+-   **Automatic trimming** occurs during publish operations to maintain the configured limits
+-   **Scheduled trimming** is also performed via Laravel's scheduler to ensure streams remain within size limits even during periods of low publishing activity. In local environments, make sure to run `php artisan schedule:run` command to enable this feature.
+
+## Configuration
+
+The published configuration file includes several sections to customize StreamPulse's behavior:
+
+```php
+return [
+    /*
+    | Default Driver
+    | Available: "redis", "nats" (NATS support coming in future releases)
+    */
+    'driver' => env('STREAMPULSE_DRIVER', 'redis'),
+
+    /*
+    | Strict Mode - When enabled, only explicitly defined topics can be used
+    */
+    'strict_mode' => env('STREAMPULSE_STRICT_MODE', true),
+
+    /*
+    | Auto Processing - Automatically process pending messages that exceed retry limits
+    */
+    'auto_process_pending' => env('STREAMPULSE_AUTO_PROCESS', true),
+
+    /*
+    | Global Defaults - Applied to all topics unless overridden
+    */
+    'defaults' => [
+        'max_retries' => 3,
+        'dlq' => 'dead_letter',
+        'retention' => 1000,
+        'min_idle_time' => 30000,  // Minimum time (ms) before re-processing pending messages
+        'preserve_order' => false, // Whether to enforce strict message ordering
+    ],
+
+    /*
+    | Topics - Per-topic configuration overrides
+    */
+    'topics' => [
+        'orders' => [
+            'max_retries' => 5,
+            'dlq' => 'orders_dlq',
+            'retention' => 5000,
+            'min_idle_time' => 60000,
+            'preserve_order' => true,
+        ],
+        // Other topics...
+    ],
+
+    /*
+    | Drivers - Backend-specific configuration
+    */
+    'drivers' => [
+        'redis' => [
+            'connection' => env('REDIS_CONNECTION', 'default'),
+            'stream_prefix' => 'streampulse:',
+        ],
+    ],
+
+    /*
+    | UI Settings - Dashboard configuration
+    */
+    'ui' => [
+        'enabled' => env('STREAMPULSE_UI_ENABLED', true),
+        'page_size' => env('STREAMPULSE_UI_PAGE_SIZE', 50),
+        'route_prefix' => 'stream-pulse',
+    ],
+];
+```
+
+### Key Configuration Options
+
+-   **Default Driver**: Currently Redis Streams is the only implemented driver, with NATS planned for future releases.
+-   **Strict Mode**: Prevents accidental topic creation in production by limiting to only explicitly defined topics.
+-   **Auto Processing**: Automatically schedules a task to process pending messages and move them to DLQ after exceeding retry limits.
+-   **Global Defaults**:
+    -   `max_retries`: Number of retry attempts before moving to DLQ
+    -   `dlq`: Dead letter queue name for failed messages
+    -   `retention`: Maximum number of messages to retain per stream
+    -   `min_idle_time`: Minimum time in milliseconds before re-processing pending messages
+    -   `preserve_order`: Whether to enforce strict message ordering
+-   **Topics**: Configure specific topics with custom settings that override defaults
+-   **Drivers**: Backend-specific settings (currently Redis)
+-   **UI Settings**: Configure the included web dashboard
+
+## Advanced Usage
+
+### Low-level Consumption API
+
+For more control, you can use the low-level consumption API:
 
 ```php
 use StreamPulse\StreamPulse\Facades\StreamPulse;
 
-StreamPulse::consume('orders', 'billing-service', function ($event, $messageId) {
+// Consume events from a topic with a consumer group
+StreamPulse::consume('orders', 'order-processors', function ($payload, $messageId) {
     try {
         // Process the event
-        processOrder($event);
+        OrderProcessor::process($payload);
 
-        // Acknowledge successful processing
-        StreamPulse::ack('orders', $messageId, 'billing-service');
+        // Acknowledge the message as processed
+        StreamPulse::ack('orders', $messageId, 'order-processors');
     } catch (\Exception $e) {
-        // Mark as failed (will move to dead letter queue)
-        StreamPulse::fail('orders', $messageId, 'billing-service');
-        logger()->error('Failed to process order: ' . $e->getMessage());
+        // Handle error
+        // The message will remain in pending state and can be retried
+        // After max retries, it will be moved to the DLQ automatically
     }
 });
 ```
-
-## Redis Streams Implementation
-
-StreamPulse uses Redis Streams as the default driver, which provides:
-
--   Persistent message storage
--   Consumer groups for distributed processing
--   Automatic tracking of processed messages
--   Dead letter queues for failed messages
--   Exactly-once delivery semantics
-
-### Redis Requirements
-
-You need to have Redis installed (version 5.0 or higher) and properly configured in your Laravel application.
 
 ## UI Dashboard
 
 StreamPulse includes a web dashboard for monitoring and inspecting your streams and events:
 
-![StreamPulse Dashboard](resources/images/dashboard.png)
-
-### Features
+### Dashboard Features
 
 -   View all available streams/topics
--   Browse events by topic with pagination
--   Examine event details including payload and metadata
--   Track failed events across all topics
--   Real-time monitoring of stream activity
--   Visual analytics of event processing
+-   Browse events by topic with pagination - coming soon
+-   Examine event details including payload and metadata - coming soon
+-   Track failed events across all topics - coming soon
+-   Real-time monitoring of stream activity - coming soon
+-   Visual analytics of event processing - coming soon
 
 ### Accessing the Dashboard
 
@@ -328,35 +303,18 @@ Routes include:
 
 -   Dashboard: `/stream-pulse`
 -   Topic Events: `/stream-pulse/topics/{topic}`
--   Event Details: `/stream-pulse/topics/{topic}/events/{eventId}`
--   Failed Events: `/stream-pulse/failed`
 
-## Testing
+## Architecture
 
-```bash
-composer test
-```
+StreamPulse uses Redis Streams as the default driver, which provides:
 
-## Changelog
+-   Persistent message storage
+-   Consumer groups for distributed processing
+-   Automatic tracking of processed messages
+-   Dead letter queues for failed messages
+-   Exactly-once delivery semantics
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
-
-## Contributing
-
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
-
-## Security Vulnerabilities
-
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
-
-## Credits
-
--   [saravanasai](https://github.com/saravanasai)
--   [All Contributors](../../contributors)
-
-## License
-
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+The architecture is designed with a driver-based approach, allowing for seamless integration of new streaming technologies as they become available.
 
 ## License
 

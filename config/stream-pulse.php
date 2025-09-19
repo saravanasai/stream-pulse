@@ -48,9 +48,9 @@ return [
     'defaults' => [
         'max_retries' => 3,
         'dlq' => 'dead_letter',
-        'retention' => 1000, // Redis only: default max length
+        'retention' => 1000,
         'min_idle_time' => 30000,
-        'preserve_order' => false, // Whether to process messages in strict chronological order
+        'preserve_order' => false,
     ],
 
     /*
@@ -68,13 +68,13 @@ return [
             'dlq' => 'orders_dlq',
             'retention' => 5000,
             'min_idle_time' => 60000,
-            'preserve_order' => true, // Process orders in strict sequence
+            'preserve_order' => true,
         ],
         'notifications' => [
             'max_retries' => 2,
             'retention' => 2000,
             'min_idle_time' => 30000,
-            'preserve_order' => false, // Notifications can be processed in parallel
+            'preserve_order' => false,
         ],
     ],
 
