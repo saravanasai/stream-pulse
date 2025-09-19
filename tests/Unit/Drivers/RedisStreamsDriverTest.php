@@ -311,3 +311,142 @@ test('fail moves messages to dead letter queue', function () {
             $payload['success'] === true;
     });
 });
+
+// Test getDLQ method with default value
+test('getDLQ returns default value when topic-specific DLQ not configured', function () {
+    // Arrange
+    Config::set('stream-pulse.defaults.dlq', 'default-dlq');
+    $driver = new RedisStreamsDriver();
+
+    // Act
+    $result = $driver->getDLQ('unconfigured-topic');
+
+    // Assert
+    expect($result)->toBe('default-dlq');
+});
+
+// Test getDLQ method with topic-specific configuration
+test('getDLQ returns topic-specific DLQ when configured', function () {
+    // Arrange
+    Config::set('stream-pulse.defaults.dlq', 'default-dlq');
+    Config::set('stream-pulse.topics.custom-topic.dlq', 'custom-dlq');
+    $driver = new RedisStreamsDriver();
+
+    // Act
+    $result = $driver->getDLQ('custom-topic');
+
+    // Assert
+    expect($result)->toBe('custom-dlq');
+});
+
+// Test listTopics method returns all available topics
+test('listTopics returns all available topics from Redis streams', function () {
+    // Arrange
+    $streamPrefix = 'test-prefix:';
+    $redisPrefix = 'redis-prefix:';
+    $fullPrefix = $redisPrefix . $streamPrefix;
+
+    Config::set('stream-pulse.drivers.redis.stream_prefix', $streamPrefix);
+    Config::set('database.redis.options.prefix', $redisPrefix);
+
+    // Create mock Redis client
+    $redisConnection = Mockery::mock();
+    $redisClient = Mockery::mock();
+
+    Redis::shouldReceive('connection')
+        ->once()
+        ->andReturn($redisConnection);
+
+    $redisConnection->shouldReceive('client')
+        ->once()
+        ->andReturn($redisClient);
+
+    // Mock the scan behavior to return keys in batches
+    // First call returns some keys and sets iterator to continue
+    $redisClient->shouldReceive('scan')
+        ->once()
+        ->withArgs(function (&$iterator, $pattern, $count) use ($fullPrefix) {
+            expect($pattern)->toBe($fullPrefix . '*');
+            expect($count)->toBe(100);
+            $iterator = 1; // Set to non-zero to continue scanning
+            return true;
+        })
+        ->andReturn([
+            $fullPrefix . 'topic1',
+            $fullPrefix . 'topic2'
+        ]);
+
+    // Second call returns more keys and sets iterator to 0 (done)
+    $redisClient->shouldReceive('scan')
+        ->once()
+        ->withArgs(function (&$iterator, $pattern, $count) use ($fullPrefix) {
+            expect($iterator)->toBe(1);
+            expect($pattern)->toBe($fullPrefix . '*');
+            expect($count)->toBe(100);
+            $iterator = 0; // Set to zero to end scanning
+            return true;
+        })
+        ->andReturn([
+            $fullPrefix . 'topic3'
+        ]);
+
+    // We shouldn't need to fall back to keys command
+    $redisClient->shouldNotReceive('keys');
+
+    $driver = new RedisStreamsDriver();
+
+    // Act
+    $result = $driver->listTopics();
+
+    // Assert
+    expect($result)->toBe(['topic1', 'topic2', 'topic3']);
+});
+
+// Test listTopics falls back to keys command when scan returns no results
+test('listTopics falls back to keys command when scan returns no results', function () {
+    // Arrange
+    $streamPrefix = 'test-prefix:';
+    $redisPrefix = 'redis-prefix:';
+    $fullPrefix = $redisPrefix . $streamPrefix;
+
+    Config::set('stream-pulse.drivers.redis.stream_prefix', $streamPrefix);
+    Config::set('database.redis.options.prefix', $redisPrefix);
+
+    // Create mock Redis client
+    $redisConnection = Mockery::mock();
+    $redisClient = Mockery::mock();
+
+    Redis::shouldReceive('connection')
+        ->once()
+        ->andReturn($redisConnection);
+
+    $redisConnection->shouldReceive('client')
+        ->once()
+        ->andReturn($redisClient);
+
+    // Mock scan to return empty results
+    $redisClient->shouldReceive('scan')
+        ->once()
+        ->withArgs(function (&$iterator, $pattern, $count) use ($fullPrefix) {
+            $iterator = 0; // End scanning immediately
+            return true;
+        })
+        ->andReturn([]);
+
+    // Now the fallback to keys should be called
+    $redisClient->shouldReceive('keys')
+        ->once()
+        ->with($fullPrefix . '*')
+        ->andReturn([
+            $fullPrefix . 'fallback-topic1',
+            $fullPrefix . 'fallback-topic2'
+        ]);
+
+    $driver = new RedisStreamsDriver();
+
+    // Act
+    $result = $driver->listTopics();
+
+    // Assert
+    expect($result)->toBe(['fallback-topic1', 'fallback-topic2']);
+});

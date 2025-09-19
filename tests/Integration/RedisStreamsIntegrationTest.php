@@ -55,101 +55,38 @@ test('messages published by producer can be consumed by consumer', function () {
 });
 
 /**
- * Test Retention Policy
+ * Test Retention Policy (Simplified)
  */
-test('retention policy correctly trims streams', function () {
-    // Create a new driver instance to ensure we have a fresh Redis connection
+test('retention policy trims stream to exact retention limit', function () {
     $driver = new RedisStreamsDriver();
-
-    // Use a very unique topic name to avoid any interference
-    $topic = 'retention-test-topic-' . uniqid() . '-' . rand(1000, 9999);
-
-    // Get access to the same Redis connection that the driver uses
-    $redisConnection = null;
-    $reflectionClass = new \ReflectionClass($driver);
-    $redisProperty = $reflectionClass->getProperty('redis');
-    $redisProperty->setAccessible(true);
-    $redisConnection = $redisProperty->getValue($driver);
-
-    // Configure a specific retention for this topic
+    $topic = 'retention-policy-test-simple';
     $retentionLimit = 5;
+
+    // Clean up any existing stream for this topic
+    $redis = app('redis')->connection()->client();
+    $streamName = $driver->getStreamName($topic);
+    $redis->del($streamName);
+
+    // Set retention config
     config(['stream-pulse.topics.' . $topic . '.retention' => $retentionLimit]);
 
-    // Verify config is set correctly
-    $driverRetention = $driver->getRetention($topic);
-
-    echo "Configured retention for topic {$topic}: {$driverRetention}\n";
-
-    // Get the stream name using the driver's method
-    $driverStreamName = $driver->getStreamName($topic);
-
-    echo "Using stream name: {$driverStreamName}\n";
-
-    // Get the actual Redis key pattern being used
-    $redis = Redis::connection()->client();
-
-    // Publish a test message to see what the actual key is in Redis
-    $testTopic = 'test-prefix-' . uniqid();
-    $driver->publish($testTopic, ['test' => true], []);
-
-    // Find the actual key pattern
-    $keys = $redis->keys('*' . $testTopic);
-    echo "Found keys in Redis: " . json_encode($keys) . "\n";
-
-    if (!empty($keys) && isset($keys[0])) {
-        // Extract the actual prefix by removing the test topic name
-        $actualPrefix = str_replace($testTopic, '', $keys[0]);
-        echo "Detected actual Redis prefix: '{$actualPrefix}'\n";
-        $fullStreamName = $actualPrefix . $topic;
-    } else {
-        // Fallback to the driver's prefix if we can't detect it
-        $fullPrefixProperty = $reflectionClass->getProperty('fullPrefix');
-        $fullPrefixProperty->setAccessible(true);
-        $fullPrefix = $fullPrefixProperty->getValue($driver);
-        $fullStreamName = $fullPrefix . $topic;
-        echo "Using fallback prefix: '{$fullPrefix}'\n";
-    }
-
-    echo "Full stream name with prefix: {$fullStreamName}\n";
-
-    // Publish exactly 1000 messages to ensure we know the count
-    for ($i = 0; $i < 1000; $i++) {
+    // Publish 10 events
+    for ($i = 1; $i <= 10; $i++) {
         $driver->publish($topic, ['index' => $i], []);
     }
 
-    // Check stream length before trimming using the driver's Redis connection
-    // The driver's Redis connection already handles the prefixing internally
-    $initialLength = $redisConnection->xLen($driverStreamName);
-    expect($initialLength)->toBeGreaterThanOrEqual(10); // Should have at least 10 messages
+    // Sanity check before retention
+    $countBefore = $redis->xLen($streamName);
+    expect($countBefore)->toBe(10);
 
-    // Let's also check with Laravel's Redis facade for comparison
-    // When using the facade directly, we need to use the full prefixed name
-    $afterPublishLength = Redis::connection()->client()->xLen($driverStreamName);
-    echo "Stream length after publishing (facade): {$afterPublishLength}\n";
-    // Apply retention using the driver's method
+    // Apply retention
     $driver->applyRetention($topic);
 
-    // Check stream length after trimming using the driver's Redis connection
-    $trimmedLength = $redisConnection->xLen($driverStreamName);
-    $fullLaravelTrimmedLength = $redisConnection->xLen($fullStreamName);
-    // Also check with Laravel's Redis facade
-    $laravelTrimmedLength = Redis::connection()->client()->xLen($driverStreamName);
-    echo "Stream length after applying retention (facade): {$laravelTrimmedLength}\n";
-    echo "Stream length after applying retention (driver connection): {$fullLaravelTrimmedLength}\n";
-    // Verify the retention policy was applied
-    // Since Redis's XTRIM implementations can vary, we'll verify it's at least smaller
-    expect($trimmedLength)->toBeLessThan($initialLength);
-
-    // If the Redis implementation is exact (no ~), this would be true
-    expect($trimmedLength)->toBeLessThanOrEqual($retentionLimit);
-
-    // Let's also directly check if the driver's Redis connection works by manually trimming
-    $redisConnection->xTrim($fullStreamName, 'MAXLEN', 3);
-    $finalLength = $redisConnection->xLen($fullStreamName);
-
-    // Verify the final result after manual trimming
-    expect($finalLength)->toBe(3);
+    // After retention, should be exactly $retentionLimit
+    $countAfter = $redis->xLen($streamName);
+    expect($countAfter)->toBe($retentionLimit);
 });
+
 /**
  * Test Dead Letter Queue
  */
@@ -177,12 +114,6 @@ test('messages that fail processing are retried and eventually sent to DLQ', fun
 
     // Create the consumer group manually to ensure it exists
     $streamName = $driver->getStreamName($topic);
-    try {
-        $redis->xGroup('CREATE', $streamName, $group, '0', true);
-    } catch (\Exception $e) {
-        // Group may already exist
-    }
-
     // Process message once to make it pending
     try {
         $driver->consume($topic, function () {
@@ -226,6 +157,11 @@ test('ordered topics process messages strictly in order', function () {
     $driver = new RedisStreamsDriver();
     $topic = 'ordered-test-topic';
     $group = 'ordered-test-group';
+    $streamName = $driver->getStreamName($topic);
+
+    // Clean up any existing stream before test
+    $redis = app('redis')->connection()->client();
+    $redis->del($streamName);
 
     // Configure ordering
     config(['stream-pulse.topics.' . $topic . '.preserve_order' => true]);
@@ -246,11 +182,12 @@ test('ordered topics process messages strictly in order', function () {
         }, $group);
     }
 
-    // Sort the received sequences (should already be in order if ordering works)
-    sort($receivedSequence);
-
-    // Verify messages were processed in correct order
+    // Verify messages were processed in the exact order they were published
+    // No sorting needed - we're verifying the ordering feature works
     expect($receivedSequence)->toBe(range(1, 10));
+
+    // Clean up after test
+    $redis->del($streamName);
 });
 
 /**
