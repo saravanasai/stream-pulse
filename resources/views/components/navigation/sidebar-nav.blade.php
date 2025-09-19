@@ -11,9 +11,7 @@
     <a href="{{ route('stream-pulse.failed') }}"
         class="flex items-center py-2 px-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded-md group {{ request()->routeIs('stream-pulse.failed') ? 'bg-gray-800 text-white' : '' }}">
         <i class="fa-solid fa-triangle-exclamation w-5 h-5 mr-3 text-gray-400 group-hover:text-white"></i>
-        <span>Failed Events</span>
-        <span class="ml-auto bg-redis-red text-white text-xs font-medium px-2 py-0.5 rounded-full">
-            3
-        </span>
+        <span>Failed Events - comming soon</span>
+
     </a>
 </div>

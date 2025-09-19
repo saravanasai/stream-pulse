@@ -118,59 +118,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-800 px-4 py-2">
-                    <div class="flex justify-between items-center text-xs text-gray-500">
-                        <span>Frequency</span>
-                        <span>8 events/min</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Controls Row -->
-        <div class="flex flex-col md:flex-row gap-4 mb-6">
-            <div class="w-full md:w-1/2 bg-gray-900 border border-gray-800 rounded-lg p-4">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-sm font-medium text-white">Event Filters</h3>
-                    <button class="text-xs text-gray-400 hover:text-white transition-colors">
-                        <i class="fa-solid fa-sliders mr-1"></i> Advanced
-                    </button>
-                </div>
-                <div class="flex space-x-2">
-                    <div class="relative flex-1">
-                        <input type="text" placeholder="Search events..."
-                            class="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-3 text-sm text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-redis-red">
-                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                            <i class="fa-solid fa-search text-gray-500"></i>
-                        </div>
-                    </div>
-                    <button
-                        class="bg-redis-red hover:bg-redis-dark text-white py-2 px-4 rounded-md text-sm transition-colors">
-                        Filter
-                    </button>
-                </div>
-            </div>
-            <div class="w-full md:w-1/2 bg-gray-900 border border-gray-800 rounded-lg p-4">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-sm font-medium text-white">Event Operations</h3>
-                    <button class="text-xs text-gray-400 hover:text-white transition-colors">
-                        <i class="fa-solid fa-cog mr-1"></i> Settings
-                    </button>
-                </div>
-                <div class="flex space-x-2">
-                    <button
-                        class="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 py-2 px-3 rounded-md text-sm flex-1 transition-colors">
-                        <i class="fa-solid fa-plus mr-1"></i> Add Event
-                    </button>
-                    <button
-                        class="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 py-2 px-3 rounded-md text-sm flex-1 transition-colors">
-                        <i class="fa-solid fa-trash-can mr-1"></i> Purge Stream
-                    </button>
-                    <button
-                        class="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 py-2 px-3 rounded-md text-sm flex-1 transition-colors">
-                        <i class="fa-solid fa-file-export mr-1"></i> Export
-                    </button>
-                </div>
             </div>
         </div>
 

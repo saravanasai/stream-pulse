@@ -26,22 +26,6 @@
             </div>
         </div>
 
-        <!-- Event Status Indicator -->
-        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-6">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    @if ($event['is_failed'])
-                        <div class="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
-                        <span class="text-gray-300 text-sm">Event has failed processing</span>
-                    @else
-                        <div class="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
-                        <span class="text-gray-300 text-sm">Event processed successfully</span>
-                    @endif
-                </div>
-                <span class="text-gray-400 text-xs">ID: {{ substr($event['event_id'], 0, 16) }}...</span>
-            </div>
-        </div>
-
         <!-- Event Details Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <!-- Event Summary Card -->
@@ -120,40 +104,7 @@
                     </h3>
                 </div>
                 <div class="p-5">
-                    <div class="mb-5">
-                        <div class="flex justify-between mb-2">
-                            <span class="text-sm font-medium text-gray-400">Processing Time</span>
-                            <span class="text-sm text-white">8.2ms</span>
-                        </div>
-                        <div class="w-full bg-gray-800 rounded-full h-2">
-                            <div class="bg-green-500 h-2 rounded-full" style="width: 15%"></div>
-                        </div>
-                    </div>
-
-                    <div class="mb-5">
-                        <div class="flex justify-between mb-2">
-                            <span class="text-sm font-medium text-gray-400">Memory Usage</span>
-                            <span class="text-sm text-white">1.2MB</span>
-                        </div>
-                        <div class="w-full bg-gray-800 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width: 28%"></div>
-                        </div>
-                    </div>
-
-                    <div class="mb-5">
-                        <div class="flex justify-between mb-2">
-                            <span class="text-sm font-medium text-gray-400">Retry Count</span>
-                            <span class="text-sm text-white">0/3</span>
-                        </div>
-                        <div class="w-full bg-gray-800 rounded-full h-2">
-                            <div class="bg-yellow-500 h-2 rounded-full" style="width: 0%"></div>
-                        </div>
-                    </div>
-
-                    <div class="text-center mt-4">
-                        <span class="text-sm text-gray-400">Event Size: {{ strlen(json_encode($event['payload'])) }}
-                            bytes</span>
-                    </div>
+                    comming soon
                 </div>
             </div>
         </div>
@@ -196,14 +147,6 @@
                     Dashboard
                 </a>
             </div>
-
-            @if ($event['is_failed'])
-                <button
-                    class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-redis-red hover:bg-redis-dark transition-colors">
-                    <i class="fa-solid fa-rotate mr-2"></i>
-                    Retry Processing
-                </button>
-            @endif
         </div>
     </div>
 
