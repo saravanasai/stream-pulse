@@ -9,12 +9,6 @@
             'showAutoRefresh' => true,
         ])
 
-        <!-- Status Overview -->
-        @include('stream-pulse::components.dashboard.status-overview', [
-            'status' => 'success',
-            'message' => 'All systems operational',
-        ])
-
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             @include('stream-pulse::components.cards.stat-card', [
